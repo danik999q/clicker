@@ -1,0 +1,31 @@
+/* src/app.css */
+:root {
+    --bg-color: #111827; /* Темно-синий фон */
+    --surface-color: #1f2937; /* Цвет фона для карточек */
+    --border-color: #374151; /* Цвет границ */
+
+    --primary-accent: #34d399; /* Основной акцент (зеленый) */
+    --secondary-accent: #8b5cf6; /* Вторичный акцент (фиолетовый) */
+
+    --text-primary: #f9fafb; /* Основной цвет текста */
+    --text-secondary: #9ca3af; /* Вторичный цвет текста */
+
+    --font-sans: 'Inter', sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    user-select: none;
+}
+
+h1, h2 {
+    color: var(--text-primary);
+    font-weight: 700;
+}
