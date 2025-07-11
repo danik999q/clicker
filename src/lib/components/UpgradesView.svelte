@@ -2,9 +2,14 @@
     import { gameStore, META_UPGRADE_DEFINITIONS, PRESTIGE_THRESHOLD, GLOBAL_UPGRADE_DEFINITIONS, ACHIEVEMENT_DEFINITIONS } from '$lib/store.js';
     import { formatNumber } from '$lib/utils.js';
 
-    let activeTab = 'memes';
     const state = gameStore;
+    let activeTab = 'memes';
     const costRatio = 1.6;
+
+    $: costReduction = 1 - ($state.globalUpgrades || [])
+        .filter(u => u.isPurchased && GLOBAL_UPGRADE_DEFINITIONS.find(def => def.id === u.id)?.type === 'UPGRADE_COST_REDUCTION')
+        .reduce((sum, u) => sum + GLOBAL_UPGRADE_DEFINITIONS.find(def => def.id === u.id).value, 0);
+
 
     function calculateCost(startCost, amount) {
         if (amount <= 0) return 0;
@@ -17,12 +22,12 @@
         return total;
     }
 
-    function calculateMaxAffordable(startCost, totalViews, costReduction) {
+    function calculateMaxAffordable(startCost, totalViews, currentCostReduction) {
         let currentCost = startCost;
         let affordableLevels = 0;
         let availableViews = totalViews;
-        while (availableViews >= currentCost * costReduction) {
-            availableViews -= currentCost * costReduction;
+        while (availableViews >= currentCost * currentCostReduction) {
+            availableViews -= currentCost * currentCostReduction;
             currentCost = Math.round(currentCost * costRatio);
             affordableLevels++;
         }
@@ -65,19 +70,18 @@
 
     <div id="upgrades-list">
         {#if activeTab === 'memes'}
-            {@const costReduction = 1 - $state.globalUpgrades.filter(u => u.isPurchased && GLOBAL_UPGRADE_DEFINITIONS.find(def => def.id === u.id)?.type === 'UPGRADE_COST_REDUCTION').reduce((sum, u) => sum + GLOBAL_UPGRADE_DEFINITIONS.find(def => def.id === u.id).value, 0)}
-
             {#each $state.memes as meme, index (meme.id)}
                 {@const amount = $state.buyMultiplier > 0 ? $state.buyMultiplier : calculateMaxAffordable(meme.upgradeCost, $state.totalViews, costReduction)}
                 {@const cost = calculateCost(meme.upgradeCost, amount) * costReduction}
+                {@const clickPower = ($state.memes[index].baseViews * $state.memes[index].level) * (1 + ($state.rewardBonuses?.clickMultiplier || 0))}
+                {@const passivePower = ($state.memes[index].passiveViews * $state.memes[index].level) * (1 + ($state.rewardBonuses?.passiveMultiplier || 0))}
 
                 {#if meme.isUnlocked}
                     <div class="upgrade-item" class:active={index === $state.activeMemeIndex} on:click={() => gameStore.setActiveMeme(index)}>
                         <div class="upgrade-item-info">
                             <p class="item-name">{meme.name}</p>
                             <p class="item-stats">
-                                Ур: {meme.level} | Клик: {formatNumber(meme.baseViews *
-                                meme.level)} | Пассивно: {formatNumber(meme.passiveViews * meme.level)}/сек
+                                Ур: {meme.level} | Клик: {formatNumber(clickPower)} | Пассивно: {formatNumber(passivePower)}/сек
                             </p>
                         </div>
                         <button
@@ -191,8 +195,6 @@
         gap: 0.5rem;
         margin-bottom: 1.5rem;
         border-bottom: 1px solid var(--border-color);
-        /* Позволяем вкладкам переноситься на новую строку */
-        flex-wrap: wrap;
     }
     .tab-button {
         background: none;
@@ -411,23 +413,5 @@
         color: var(--primary-accent);
         text-align: right;
         flex-shrink: 0;
-    }
-
-    /* --- НОВЫЙ БЛОК: АДАПТАЦИЯ КАРТОЧЕК УЛУЧШЕНИЙ --- */
-    @media (max-width: 480px) {
-        .upgrade-item {
-            flex-direction: column;
-            align-items: stretch; /* Растягиваем элементы по ширине */
-            gap: 0.75rem;
-        }
-        .upgrade-item-info {
-            text-align: center;
-        }
-        .upgrade-button, .unlock-button, .purchase-button {
-            margin-left: 0; /* Убираем отступ слева на мобильных */
-        }
-        .achievement-reward {
-            text-align: center;
-        }
     }
 </style>

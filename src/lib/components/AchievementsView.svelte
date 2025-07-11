@@ -2,22 +2,30 @@
     import { gameStore, ACHIEVEMENT_DEFINITIONS } from '$lib/store.js';
 </script>
 
-<div id="achievements-list">
-    {#each ACHIEVEMENT_DEFINITIONS as achievement (achievement.id)}
-        <div class="list-item achievement" class:completed={$gameStore.achievementsProgress[achievement.id]}>
-            <div class="icon">
-                {#if $gameStore.achievementsProgress[achievement.id]}✓{:else}❓{/if}
+<div class="view-container">
+    <div id="achievements-list">
+        {#each ACHIEVEMENT_DEFINITIONS as achievement (achievement.id)}
+            <div class="list-item achievement" class:completed={$gameStore.achievementsProgress[achievement.id]}>
+                <div class="icon">
+                    {#if $gameStore.achievementsProgress[achievement.id]}✓{:else}❓{/if}
+                </div>
+                <div class="item-info">
+                    <p class="item-name">{achievement.name}</p>
+                    <p class="item-stats">{achievement.description}</p>
+                </div>
+                <div class="reward">{achievement.rewardDescription}</div>
             </div>
-            <div class="item-info">
-                <p class="item-name">{achievement.name}</p>
-                <p class="item-stats">{achievement.description}</p>
-            </div>
-            <div class="reward">{achievement.rewardDescription}</div>
-        </div>
-    {/each}
+        {/each}
+    </div>
 </div>
 
 <style>
+    .view-container {
+        width: 100%;
+        padding: 1.5rem; /* <-- ДОБАВЛЕНЫ ОТСТУПЫ */
+        box-sizing: border-box; /* Важно, чтобы padding не увеличивал ширину */
+    }
+
     #achievements-list {
         display: flex;
         flex-direction: column;
