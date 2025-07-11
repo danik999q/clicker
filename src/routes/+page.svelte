@@ -57,15 +57,30 @@
 <style>
     .game-wrapper {
         background-color: var(--surface-color);
-        border-radius: 16px;
         border: 1px solid var(--border-color);
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-        width: 450px;
-        height: 80vh;
-        max-height: 800px;
+
+        /* --- ИЗМЕНЕНИЯ ЗДЕСЬ --- */
+        width: 100%; /* Занимает всю доступную ширину */
+        max-width: 550px; /* Но не больше этого значения на больших экранах */
+        height: 95vh; /* Занимает почти всю высоту экрана */
+        max-height: 850px; /* Но не больше этого */
+        border-radius: 16px; /* Оставляем скругление для десктопа */
+
         display: flex;
         flex-direction: column;
         overflow: hidden;
+    }
+
+    /* --- НОВЫЙ БЛОК: МЕДИА-ЗАПРОС ДЛЯ МОБИЛЬНЫХ --- */
+    @media (max-width: 600px) {
+        .game-wrapper {
+            /* На маленьких экранах делаем игру полноэкранной */
+            height: 100vh;
+            max-height: none;
+            border-radius: 0;
+            border: none;
+        }
     }
 
     .stats-container {

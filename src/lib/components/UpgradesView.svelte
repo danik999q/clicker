@@ -1,10 +1,9 @@
 <script>
-    // 1. ДОБАВЛЯЕМ ACHIEVEMENT_DEFINITIONS В ИМПОРТ
-    import { gameStore, ACHIEVEMENT_DEFINITIONS, META_UPGRADE_DEFINITIONS, PRESTIGE_THRESHOLD, GLOBAL_UPGRADE_DEFINITIONS } from '$lib/store.js';
+    import { gameStore, META_UPGRADE_DEFINITIONS, PRESTIGE_THRESHOLD, GLOBAL_UPGRADE_DEFINITIONS, ACHIEVEMENT_DEFINITIONS } from '$lib/store.js';
     import { formatNumber } from '$lib/utils.js';
 
+    let activeTab = 'memes';
     const state = gameStore;
-    let activeTab = 'memes'; // Локальная переменная для управления вкладками
     const costRatio = 1.6;
 
     function calculateCost(startCost, amount) {
@@ -37,7 +36,6 @@
             )
         ) {
             gameStore.prestigeReset();
-            // 2. ИСПРАВЛЯЕМ ПРИСВАИВАНИЕ
             activeTab = 'memes';
         }
     }
@@ -193,6 +191,8 @@
         gap: 0.5rem;
         margin-bottom: 1.5rem;
         border-bottom: 1px solid var(--border-color);
+        /* Позволяем вкладкам переноситься на новую строку */
+        flex-wrap: wrap;
     }
     .tab-button {
         background: none;
@@ -411,5 +411,23 @@
         color: var(--primary-accent);
         text-align: right;
         flex-shrink: 0;
+    }
+
+    /* --- НОВЫЙ БЛОК: АДАПТАЦИЯ КАРТОЧЕК УЛУЧШЕНИЙ --- */
+    @media (max-width: 480px) {
+        .upgrade-item {
+            flex-direction: column;
+            align-items: stretch; /* Растягиваем элементы по ширине */
+            gap: 0.75rem;
+        }
+        .upgrade-item-info {
+            text-align: center;
+        }
+        .upgrade-button, .unlock-button, .purchase-button {
+            margin-left: 0; /* Убираем отступ слева на мобильных */
+        }
+        .achievement-reward {
+            text-align: center;
+        }
     }
 </style>
