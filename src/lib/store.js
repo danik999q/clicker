@@ -1,7 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { browser } from '$app/environment';
 
-// --- КОНСТАНТЫ (остаются без изменений) ---
 export const GLOBAL_UPGRADE_DEFINITIONS = [
     { id: 'click_boost_1', name: 'Мощные перчатки', description: 'Сила всех кликов увеличена на 25%.', cost: 10000, type: 'CLICK_MULTIPLIER', value: 0.25 },
     { id: 'passive_boost_1', name: 'Вечный двигатель мемов', description: 'Пассивный доход от всех мемов +15%.', cost: 25000, type: 'PASSIVE_MULTIPLIER', value: 0.15 },
@@ -18,7 +17,6 @@ export const ACHIEVEMENT_DEFINITIONS = [
 ];
 export const PRESTIGE_THRESHOLD = 1e12;
 
-// Убедитесь, что здесь ваш актуальный ngrok URL или адрес для деплоя
 const API_BASE_URL = 'https://b6357454418d.ngrok-free.app/api';
 
 function createGameStore() {
@@ -36,7 +34,7 @@ function createGameStore() {
         telegramId: null,
         referralSystem: { userId: null, referredCount: 0, earnings: 0, },
         memes: [
-            { id: 'crocodilo', name: 'Crocodilo Bombordiro', level: 1, isUnlocked: true, unlockCost: 0, baseViews: 1, passiveViews: 0.1, upgradeCost: 10, imageUrl: 'https://i.kym-cdn.com/entries/icons/original/000/048/739/crocodilo_bombordiro_cover.jpg' },
+            { id: 'crocodilo', name: 'Crocodilo Bombordiro', level: 1, isUnlocked: true, unlockCost: 0, baseViews: 1, passiveViews: 0.1, upgradeCost: 10, imageUrl: 'https://i.imgur.com/u4zE1t7.jpeg' },
             { id: 'sahur', name: 'Tung Tung Sahur', level: 1, isUnlocked: false, unlockCost: 500, baseViews: 5, passiveViews: 1, upgradeCost: 100, imageUrl: 'https://i1.sndcdn.com/artworks-KaAh3b3p34BqXn3g-VXZI5w-t500x500.jpg' },
             { id: 'skibidi', name: 'Skibidi Toilet', level: 1, isUnlocked: false, unlockCost: 5000, baseViews: 25, passiveViews: 5, upgradeCost: 1200, imageUrl: 'https://i.ytimg.com/vi/nzp_t-s1k6s/maxresdefault.jpg' }
         ],
@@ -82,22 +80,14 @@ function createGameStore() {
     }
 
     if (browser) {
-        // --- ВОЗВРАЩАЕМ ПРОСТУЮ И НАДЁЖНУЮ ЛОГИКУ СОХРАНЕНИЯ ---
-
-        // 1. Периодическое сохранение каждые 5 секунд
         setInterval(saveState, 5000);
-
-        // 2. Сохранение при попытке закрыть вкладку (для десктопа)
         window.addEventListener('beforeunload', saveState);
-
-        // 3. Сохранение, когда пользователь сворачивает приложение
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
                 saveState();
             }
         });
 
-        // Таймеры пассивного дохода и бонусов остаются без изменений
         setInterval(() => {
             update((state) => {
                 if (state.isLoading) return state;
@@ -150,11 +140,34 @@ function createGameStore() {
 
                 const serverState = await response.json();
 
+                // --- ВОЗВРАЩАЕМ ЛОГИКУ ОФФЛАЙН-ПРОГРЕССА ---
+                let offlineReport = null;
+                if(serverState.lastSaveTime) {
+                    const timeDifferenceInSeconds = Math.floor((Date.now() - serverState.lastSaveTime) / 1000);
+                    const maxOfflineSeconds = 7 * 24 * 60 * 60;
+                    const effectiveOfflineSeconds = Math.min(timeDifferenceInSeconds, maxOfflineSeconds);
+
+                    if (effectiveOfflineSeconds > 10) {
+                        const prestigeMultiplier = 1 + ((serverState.prestigePoints || 0) * 0.02);
+                        const globalPassiveMultiplier = 1 + (GLOBAL_UPGRADE_DEFINITIONS || []).filter(u => (serverState.globalUpgrades || []).find(s => s.id === u.id)?.isPurchased && u.type === 'PASSIVE_MULTIPLIER').reduce((sum, u) => sum + u.value, 0) + (serverState.rewardBonuses?.passiveMultiplier || 0);
+                        const baseVps = (serverState.memes || []).reduce((total, meme) => { if (meme.isUnlocked) { return total + meme.passiveViews * meme.level; } return total; }, 0);
+                        const totalVps = baseVps * globalPassiveMultiplier * prestigeMultiplier;
+                        const viewsEarnedOffline = Math.floor(totalVps * effectiveOfflineSeconds);
+
+                        serverState.totalViews = (serverState.totalViews || 0) + viewsEarnedOffline;
+                        offlineReport = {
+                            timeAway: effectiveOfflineSeconds,
+                            viewsEarned: viewsEarnedOffline
+                        };
+                    }
+                }
+
                 const hydratedState = {
                     ...defaultState,
                     ...serverState,
                     telegramId: telegramId,
                     isLoading: false,
+                    offlineReport: offlineReport, // Передаём отчёт в состояние
                     referralSystem: {
                         ...defaultState.referralSystem,
                         ...(serverState.referralSystem || {}),
