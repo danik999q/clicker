@@ -98,17 +98,23 @@
 
 <style>
     .game-wrapper {
-        background-color: var(--surface-color);
-        border-radius: 16px;
-        border: 1px solid var(--border-color);
+        /* --- ИЗМЕНЕНИЯ ЗДЕСЬ ДЛЯ ЭФФЕКТА СТЕКЛА --- */
+        background-color: rgba(31, 41, 55, 0.6); /* Полупрозрачный фон */
+        backdrop-filter: blur(12px); /* Размытие фона под элементом */
+        border: 1px solid rgba(255, 255, 255, 0.1); /* Светлая, едва заметная рамка */
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-        width: 450px;
-        height: 80vh;
-        max-height: 800px;
+
+        width: 100%;
+        max-width: 550px;
+        height: 95vh;
+        max-height: 850px;
+        border-radius: 24px; /* Увеличим скругление */
+
         display: flex;
         flex-direction: column;
         overflow: hidden;
     }
+
     @media (max-width: 600px) {
         .game-wrapper {
             height: 100vh;
@@ -117,12 +123,15 @@
             border: none;
         }
     }
+
     .stats-container {
         text-align: center;
         padding: 1.5rem;
-        border-bottom: 1px solid var(--border-color);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         flex-shrink: 0;
+        background-color: transparent; /* Убираем старый фон */
     }
+
     .stats-container h1 {
         font-size: 2rem;
         margin: 0 0 1.5rem 0;
