@@ -45,7 +45,11 @@ function createGameStore() {
         activeBoosts: {
             clickFrenzy: { isActive: false, expiry: 0 },
             incomeMultiplier: { isActive: false, expiry: 0 }
-        }
+        },
+        leaderboard: {
+            isLoading: true,
+            data: []
+        },
     };
 
     const store = writable(defaultState);
@@ -97,7 +101,6 @@ function createGameStore() {
             update((state) => {
                 if (state.isLoading) return state;
 
-                // --- ИЗМЕНЕНИЕ 2: Проверяем, не истёк ли срок действия усилений ---
                 const now = Date.now();
                 if (state.activeBoosts.clickFrenzy.isActive && now > state.activeBoosts.clickFrenzy.expiry) {
                     state.activeBoosts.clickFrenzy.isActive = false;
@@ -106,7 +109,6 @@ function createGameStore() {
                     state.activeBoosts.incomeMultiplier.isActive = false;
                 }
 
-                // --- ИЗМЕНЕНИЕ 3: Применяем множитель от усиления к пассивному доходу ---
                 const incomeBoostMultiplier = state.activeBoosts.incomeMultiplier.isActive ? 7 : 1;
                 const prestigeMultiplier = 1 + (state.prestigePoints * 0.02);
                 const metaPassiveMultiplier = 1 + META_UPGRADE_DEFINITIONS.filter(def => def.type === 'PASSIVE_MULTIPLIER' && state.metaUpgrades.find(s => s.id === def.id)?.isPurchased).reduce((sum, def) => sum + def.value, 0);
@@ -131,6 +133,30 @@ function createGameStore() {
         subscribe,
         set,
         saveState,
+        fetchLeaderboard: async () => {
+            update(state => {
+                state.leaderboard.isLoading = true;
+                return state;
+            });
+            try {
+                const response = await fetch(`${API_BASE_URL}/leaderboard`, {
+                    headers: { 'ngrok-skip-browser-warning': 'true' }
+                });
+                if (!response.ok) throw new Error('Failed to fetch leaderboard');
+                const data = await response.json();
+                update(state => {
+                    state.leaderboard.data = data;
+                    state.leaderboard.isLoading = false;
+                    return state;
+                });
+            } catch (error) {
+                console.error("Leaderboard fetch error:", error);
+                update(state => {
+                    state.leaderboard.isLoading = false;
+                    return state;
+                });
+            }
+        },
         loadStateFromServer: async (telegramId) => {
             try {
                 const response = await fetch(`${API_BASE_URL}/users/${telegramId}/state`, {
@@ -158,7 +184,6 @@ function createGameStore() {
 
                 const serverState = await response.json();
 
-                // --- ВОЗВРАЩАЕМ ЛОГИКУ ОФФЛАЙН-ПРОГРЕССА ---
                 let offlineReport = null;
                 if(serverState.lastSaveTime) {
                     const timeDifferenceInSeconds = Math.floor((Date.now() - serverState.lastSaveTime) / 1000);
@@ -185,7 +210,7 @@ function createGameStore() {
                     ...serverState,
                     telegramId: telegramId,
                     isLoading: false,
-                    offlineReport: offlineReport, // Передаём отчёт в состояние
+                    offlineReport: offlineReport,
                     referralSystem: {
                         ...defaultState.referralSystem,
                         ...(serverState.referralSystem || {}),
@@ -243,7 +268,6 @@ function createGameStore() {
         addViews: () =>
             update((state) => {
                 state.totalClicks++;
-                // --- ИЗМЕНЕНИЕ 4: Применяем множитель от "Клик-безумия" ---
                 const clickFrenzyMultiplier = state.activeBoosts.clickFrenzy.isActive ? 500 : 1;
                 const prestigeMultiplier = 1 + (state.prestigePoints * 0.02);
                 const clickMultiplier = 1 + GLOBAL_UPGRADE_DEFINITIONS.filter(u => state.globalUpgrades.find(s => s.id === u.id)?.isPurchased && u.type === 'CLICK_MULTIPLIER').reduce((sum, u) => sum + u.value, 0) + state.rewardBonuses.clickMultiplier;
@@ -338,17 +362,17 @@ function createGameStore() {
                     const now = Date.now();
                     const randomChoice = Math.random();
 
-                    if (randomChoice < 0.15) { // 15% шанс на "Клик-безумие"
+                    if (randomChoice < 0.15) {
                         state.activeBoosts.clickFrenzy = {
                             isActive: true,
-                            expiry: now + 15 * 1000 // Длительность 15 секунд
+                            expiry: now + 15 * 1000
                         };
-                    } else if (randomChoice < 0.30) { // 15% шанс на "Множитель дохода"
+                    } else if (randomChoice < 0.30) {
                         state.activeBoosts.incomeMultiplier = {
                             isActive: true,
-                            expiry: now + 60 * 1000 // Длительность 1 минута
+                            expiry: now + 60 * 1000
                         };
-                    } else { // 70% шанс на обычную награду
+                    } else {
                         const prestigeMultiplier = 1 + (state.prestigePoints * 0.02);
                         const passiveMultiplier = 1 + GLOBAL_UPGRADE_DEFINITIONS.filter(u => state.globalUpgrades.find(s => s.id === u.id)?.isPurchased && u.type === 'PASSIVE_MULTIPLIER').reduce((sum, u) => sum + u.value, 0) + state.rewardBonuses.passiveMultiplier;
                         let viewsPerSecond = 0;

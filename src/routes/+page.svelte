@@ -1,15 +1,15 @@
 <script>
-    import { onMount, onDestroy } from 'svelte'; // <-- ИЗМЕНЕНИЕ 1: Добавляем onDestroy
+    import { onMount, onDestroy } from 'svelte';
     import { gameStore, GLOBAL_UPGRADE_DEFINITIONS } from '$lib/store.js';
     import GameView from '$lib/components/GameView.svelte';
     import UpgradesView from '$lib/components/UpgradesView.svelte';
     import AchievementsView from '$lib/components/AchievementsView.svelte';
     import ReferralView from '$lib/components/ReferralView.svelte';
+    import LeaderboardView from '$lib/components/LeaderboardView.svelte';
     import ControlPanel from '$lib/components/ControlPanel.svelte';
     import WelcomeBack from '$lib/components/WelcomeBack.svelte';
     import { formatNumber } from '$lib/utils.js';
 
-    // --- ИЗМЕНЕНИЕ 2: Добавляем логику для обновления таймеров в реальном времени ---
     let now = Date.now();
     let timerInterval;
 
@@ -116,6 +116,8 @@
                 <AchievementsView />
             {:else if $gameStore.activeView === 'referrals'}
                 <ReferralView />
+            {:else if $gameStore.activeView === 'leaderboard'}
+                <LeaderboardView />
             {/if}
         </main>
 
