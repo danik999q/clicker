@@ -17,7 +17,7 @@ export const ACHIEVEMENT_DEFINITIONS = [
 ];
 export const PRESTIGE_THRESHOLD = 1e12;
 
-const API_BASE_URL = 'https://b6357454418d.ngrok-free.app/api';
+const API_BASE_URL = 'https://73a40f9e7962.ngrok-free.app/api';
 
 function createGameStore() {
     const defaultState = {
@@ -41,7 +41,11 @@ function createGameStore() {
         globalUpgrades: GLOBAL_UPGRADE_DEFINITIONS.map(def => ({ id: def.id, isPurchased: false })),
         metaUpgrades: META_UPGRADE_DEFINITIONS.map(def => ({ id: def.id, isPurchased: false })),
         achievementsProgress: { views_1: false, clicks_1: false, unlock_1: false, },
-        rewardBonuses: { clickMultiplier: 0, passiveMultiplier: 0 }
+        rewardBonuses: { clickMultiplier: 0, passiveMultiplier: 0 },
+        activeBoosts: {
+            clickFrenzy: { isActive: false, expiry: 0 },
+            incomeMultiplier: { isActive: false, expiry: 0 }
+        }
     };
 
     const store = writable(defaultState);
@@ -73,6 +77,7 @@ function createGameStore() {
                 achievementsProgress: currentState.achievementsProgress,
                 rewardBonuses: currentState.rewardBonuses,
                 referralSystem: currentState.referralSystem,
+                activeBoosts: currentState.activeBoosts, // <-- Добавляем в сохранение
             };
             const blob = new Blob([JSON.stringify({ gameState: savableState })], { type: 'application/json; charset=UTF-8' });
             navigator.sendBeacon(`${API_BASE_URL}/users/${currentState.telegramId}/state`, blob);
@@ -91,16 +96,29 @@ function createGameStore() {
         setInterval(() => {
             update((state) => {
                 if (state.isLoading) return state;
+
+                // --- ИЗМЕНЕНИЕ 2: Проверяем, не истёк ли срок действия усилений ---
+                const now = Date.now();
+                if (state.activeBoosts.clickFrenzy.isActive && now > state.activeBoosts.clickFrenzy.expiry) {
+                    state.activeBoosts.clickFrenzy.isActive = false;
+                }
+                if (state.activeBoosts.incomeMultiplier.isActive && now > state.activeBoosts.incomeMultiplier.expiry) {
+                    state.activeBoosts.incomeMultiplier.isActive = false;
+                }
+
+                // --- ИЗМЕНЕНИЕ 3: Применяем множитель от усиления к пассивному доходу ---
+                const incomeBoostMultiplier = state.activeBoosts.incomeMultiplier.isActive ? 7 : 1;
                 const prestigeMultiplier = 1 + (state.prestigePoints * 0.02);
                 const metaPassiveMultiplier = 1 + META_UPGRADE_DEFINITIONS.filter(def => def.type === 'PASSIVE_MULTIPLIER' && state.metaUpgrades.find(s => s.id === def.id)?.isPurchased).reduce((sum, def) => sum + def.value, 0);
                 const globalPassiveMultiplier = 1 + GLOBAL_UPGRADE_DEFINITIONS.filter(u => state.globalUpgrades.find(s => s.id === u.id)?.isPurchased && u.type === 'PASSIVE_MULTIPLIER').reduce((sum, u) => sum + u.value, 0) + state.rewardBonuses.passiveMultiplier;
+
                 let viewsPerSecond = 0;
                 for (const meme of state.memes) {
                     if (meme.isUnlocked) {
                         viewsPerSecond += meme.passiveViews * meme.level;
                     }
                 }
-                state.totalViews += viewsPerSecond * globalPassiveMultiplier * prestigeMultiplier * metaPassiveMultiplier;
+                state.totalViews += viewsPerSecond * globalPassiveMultiplier * prestigeMultiplier * incomeBoostMultiplier;
                 return checkAchievements(state);
             });
         }, 1000);
@@ -225,11 +243,13 @@ function createGameStore() {
         addViews: () =>
             update((state) => {
                 state.totalClicks++;
+                // --- ИЗМЕНЕНИЕ 4: Применяем множитель от "Клик-безумия" ---
+                const clickFrenzyMultiplier = state.activeBoosts.clickFrenzy.isActive ? 500 : 1;
                 const prestigeMultiplier = 1 + (state.prestigePoints * 0.02);
                 const clickMultiplier = 1 + GLOBAL_UPGRADE_DEFINITIONS.filter(u => state.globalUpgrades.find(s => s.id === u.id)?.isPurchased && u.type === 'CLICK_MULTIPLIER').reduce((sum, u) => sum + u.value, 0) + state.rewardBonuses.clickMultiplier;
                 const activeMeme = state.memes[state.activeMemeIndex];
                 const baseClickViews = activeMeme.baseViews * activeMeme.level;
-                state.totalViews += baseClickViews * clickMultiplier * prestigeMultiplier;
+                state.totalViews += baseClickViews * clickMultiplier * prestigeMultiplier * clickFrenzyMultiplier;
                 return checkAchievements(state);
             }),
         setBuyMultiplier: (multiplier) =>
@@ -315,13 +335,29 @@ function createGameStore() {
         clickFloatingBonus: () =>
             update(state => {
                 if (state.floatingBonus.isActive) {
-                    const prestigeMultiplier = 1 + (state.prestigePoints * 0.02);
-                    const passiveMultiplier = 1 + GLOBAL_UPGRADE_DEFINITIONS.filter(u => state.globalUpgrades.find(s => s.id === u.id)?.isPurchased && u.type === 'PASSIVE_MULTIPLIER').reduce((sum, u) => sum + u.value, 0) + state.rewardBonuses.passiveMultiplier;
-                    let viewsPerSecond = 0;
-                    for (const meme of state.memes) { if (meme.isUnlocked) { viewsPerSecond += meme.passiveViews * meme.level; } }
-                    const totalVps = viewsPerSecond * passiveMultiplier * prestigeMultiplier;
-                    const reward = (totalVps * 60 * 15) + (state.totalViews * 0.05);
-                    state.totalViews += reward;
+                    const now = Date.now();
+                    const randomChoice = Math.random();
+
+                    if (randomChoice < 0.15) { // 15% шанс на "Клик-безумие"
+                        state.activeBoosts.clickFrenzy = {
+                            isActive: true,
+                            expiry: now + 15 * 1000 // Длительность 15 секунд
+                        };
+                    } else if (randomChoice < 0.30) { // 15% шанс на "Множитель дохода"
+                        state.activeBoosts.incomeMultiplier = {
+                            isActive: true,
+                            expiry: now + 60 * 1000 // Длительность 1 минута
+                        };
+                    } else { // 70% шанс на обычную награду
+                        const prestigeMultiplier = 1 + (state.prestigePoints * 0.02);
+                        const passiveMultiplier = 1 + GLOBAL_UPGRADE_DEFINITIONS.filter(u => state.globalUpgrades.find(s => s.id === u.id)?.isPurchased && u.type === 'PASSIVE_MULTIPLIER').reduce((sum, u) => sum + u.value, 0) + state.rewardBonuses.passiveMultiplier;
+                        let viewsPerSecond = 0;
+                        for (const meme of state.memes) { if (meme.isUnlocked) { viewsPerSecond += meme.passiveViews * meme.level; } }
+                        const totalVps = viewsPerSecond * passiveMultiplier * prestigeMultiplier;
+                        const reward = (totalVps * 60 * 15) + (state.totalViews * 0.05);
+                        state.totalViews += reward;
+                    }
+
                     state.floatingBonus.isActive = false;
                 }
                 return state;
