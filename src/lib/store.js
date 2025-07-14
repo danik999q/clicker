@@ -17,7 +17,7 @@ export const ACHIEVEMENT_DEFINITIONS = [
 ];
 export const PRESTIGE_THRESHOLD = 1e12;
 
-const API_BASE_URL = 'https://73a40f9e7962.ngrok-free.app/api';
+const API_BASE_URL = 'https://07011887c5c5.ngrok-free.app/api';
 
 function createGameStore() {
     const defaultState = {
@@ -33,6 +33,8 @@ function createGameStore() {
         prestigePoints: 0,
         telegramId: null,
         referralSystem: { userId: null, referredCount: 0, earnings: 0, },
+        walletAddress: null,
+        isWalletConnected: false,
         memes: [
             { id: 'crocodilo', name: 'Crocodilo Bombordiro', level: 1, isUnlocked: true, unlockCost: 0, baseViews: 1, passiveViews: 0.1, upgradeCost: 10, imageUrl: 'https://i.imgur.com/u4zE1t7.jpeg' },
             { id: 'sahur', name: 'Tung Tung Sahur', level: 1, isUnlocked: false, unlockCost: 500, baseViews: 5, passiveViews: 1, upgradeCost: 100, imageUrl: 'https://i1.sndcdn.com/artworks-KaAh3b3p34BqXn3g-VXZI5w-t500x500.jpg' },
@@ -45,11 +47,7 @@ function createGameStore() {
         activeBoosts: {
             clickFrenzy: { isActive: false, expiry: 0 },
             incomeMultiplier: { isActive: false, expiry: 0 }
-        },
-        leaderboard: {
-            isLoading: true,
-            data: []
-        },
+        }
     };
 
     const store = writable(defaultState);
@@ -81,7 +79,9 @@ function createGameStore() {
                 achievementsProgress: currentState.achievementsProgress,
                 rewardBonuses: currentState.rewardBonuses,
                 referralSystem: currentState.referralSystem,
-                activeBoosts: currentState.activeBoosts, // <-- Добавляем в сохранение
+                activeBoosts: currentState.activeBoosts,
+                walletAddress: currentState.walletAddress,
+                isWalletConnected: currentState.isWalletConnected,
             };
             const blob = new Blob([JSON.stringify({ gameState: savableState })], { type: 'application/json; charset=UTF-8' });
             navigator.sendBeacon(`${API_BASE_URL}/users/${currentState.telegramId}/state`, blob);
@@ -100,26 +100,12 @@ function createGameStore() {
         setInterval(() => {
             update((state) => {
                 if (state.isLoading) return state;
-
-                const now = Date.now();
-                if (state.activeBoosts.clickFrenzy.isActive && now > state.activeBoosts.clickFrenzy.expiry) {
-                    state.activeBoosts.clickFrenzy.isActive = false;
-                }
-                if (state.activeBoosts.incomeMultiplier.isActive && now > state.activeBoosts.incomeMultiplier.expiry) {
-                    state.activeBoosts.incomeMultiplier.isActive = false;
-                }
-
                 const incomeBoostMultiplier = state.activeBoosts.incomeMultiplier.isActive ? 7 : 1;
                 const prestigeMultiplier = 1 + (state.prestigePoints * 0.02);
                 const metaPassiveMultiplier = 1 + META_UPGRADE_DEFINITIONS.filter(def => def.type === 'PASSIVE_MULTIPLIER' && state.metaUpgrades.find(s => s.id === def.id)?.isPurchased).reduce((sum, def) => sum + def.value, 0);
                 const globalPassiveMultiplier = 1 + GLOBAL_UPGRADE_DEFINITIONS.filter(u => state.globalUpgrades.find(s => s.id === u.id)?.isPurchased && u.type === 'PASSIVE_MULTIPLIER').reduce((sum, u) => sum + u.value, 0) + state.rewardBonuses.passiveMultiplier;
-
                 let viewsPerSecond = 0;
-                for (const meme of state.memes) {
-                    if (meme.isUnlocked) {
-                        viewsPerSecond += meme.passiveViews * meme.level;
-                    }
-                }
+                for (const meme of state.memes) { if (meme.isUnlocked) { viewsPerSecond += meme.passiveViews * meme.level; } }
                 state.totalViews += viewsPerSecond * globalPassiveMultiplier * prestigeMultiplier * incomeBoostMultiplier;
                 return checkAchievements(state);
             });
@@ -133,114 +119,62 @@ function createGameStore() {
         subscribe,
         set,
         saveState,
-        fetchLeaderboard: async () => {
-            update(state => {
-                state.leaderboard.isLoading = true;
-                return state;
-            });
-            try {
-                const response = await fetch(`${API_BASE_URL}/leaderboard`, {
-                    headers: { 'ngrok-skip-browser-warning': 'true' }
-                });
-                if (!response.ok) throw new Error('Failed to fetch leaderboard');
-                const data = await response.json();
-                update(state => {
-                    state.leaderboard.data = data;
-                    state.leaderboard.isLoading = false;
-                    return state;
-                });
-            } catch (error) {
-                console.error("Leaderboard fetch error:", error);
-                update(state => {
-                    state.leaderboard.isLoading = false;
-                    return state;
-                });
-            }
-        },
+        updateWalletAddress: (address) => update(state => {
+            state.walletAddress = address;
+            state.isWalletConnected = !!address;
+            saveState();
+            return state;
+        }),
         loadStateFromServer: async (telegramId) => {
             try {
                 const response = await fetch(`${API_BASE_URL}/users/${telegramId}/state`, {
                     headers: {'ngrok-skip-browser-warning': 'true'}
-                });
-
-                if (response.status === 404) {
-                    console.log('User not found. Registering new user...');
+                });                if (response.status === 404) {
                     await fetch(`${API_BASE_URL}/register`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ telegram_id: telegramId, username: 'user_' + telegramId })
                     });
-                    const newState = {
-                        ...defaultState,
-                        telegramId: telegramId,
-                        referralSystem: { ...defaultState.referralSystem, userId: telegramId },
-                        isLoading: false
-                    };
+                    const newState = { ...defaultState, telegramId: telegramId, isLoading: false, referralSystem: { ...defaultState.referralSystem, userId: telegramId } };
                     set(newState);
                     return;
                 }
-
-                if (!response.ok) { throw new Error('Server error while loading state'); }
-
+                if (!response.ok) { throw new Error('Server error'); }
                 const serverState = await response.json();
-
                 let offlineReport = null;
                 if(serverState.lastSaveTime) {
                     const timeDifferenceInSeconds = Math.floor((Date.now() - serverState.lastSaveTime) / 1000);
                     const maxOfflineSeconds = 7 * 24 * 60 * 60;
                     const effectiveOfflineSeconds = Math.min(timeDifferenceInSeconds, maxOfflineSeconds);
-
                     if (effectiveOfflineSeconds > 10) {
                         const prestigeMultiplier = 1 + ((serverState.prestigePoints || 0) * 0.02);
                         const globalPassiveMultiplier = 1 + (GLOBAL_UPGRADE_DEFINITIONS || []).filter(u => (serverState.globalUpgrades || []).find(s => s.id === u.id)?.isPurchased && u.type === 'PASSIVE_MULTIPLIER').reduce((sum, u) => sum + u.value, 0) + (serverState.rewardBonuses?.passiveMultiplier || 0);
                         const baseVps = (serverState.memes || []).reduce((total, meme) => { if (meme.isUnlocked) { return total + meme.passiveViews * meme.level; } return total; }, 0);
                         const totalVps = baseVps * globalPassiveMultiplier * prestigeMultiplier;
                         const viewsEarnedOffline = Math.floor(totalVps * effectiveOfflineSeconds);
-
                         serverState.totalViews = (serverState.totalViews || 0) + viewsEarnedOffline;
-                        offlineReport = {
-                            timeAway: effectiveOfflineSeconds,
-                            viewsEarned: viewsEarnedOffline
-                        };
+                        offlineReport = { timeAway: effectiveOfflineSeconds, viewsEarned: viewsEarnedOffline };
                     }
                 }
-
                 const hydratedState = {
                     ...defaultState,
                     ...serverState,
                     telegramId: telegramId,
                     isLoading: false,
                     offlineReport: offlineReport,
-                    referralSystem: {
-                        ...defaultState.referralSystem,
-                        ...(serverState.referralSystem || {}),
-                        userId: telegramId
-                    },
-                    memes: defaultState.memes.map(defaultMeme => {
-                        const savedMeme = serverState.memes?.find(m => m.id === defaultMeme.id);
-                        return savedMeme ? { ...defaultMeme, ...savedMeme } : defaultMeme;
-                    }),
-                    globalUpgrades: defaultState.globalUpgrades.map(defaultUpgrade => {
-                        const savedUpgrade = serverState.globalUpgrades?.find(u => u.id === defaultUpgrade.id);
-                        return savedUpgrade ? { ...defaultUpgrade, ...savedUpgrade } : defaultUpgrade;
-                    }),
-                    metaUpgrades: defaultState.metaUpgrades.map(defaultUpgrade => {
-                        const savedUpgrade = serverState.metaUpgrades?.find(u => u.id === defaultUpgrade.id);
-                        return savedUpgrade ? { ...defaultUpgrade, ...savedUpgrade } : defaultUpgrade;
-                    }),
+                    isWalletConnected: !!serverState.walletAddress,
+                    referralSystem: { ...defaultState.referralSystem, ...(serverState.referralSystem || {}), userId: telegramId },
+                    memes: defaultState.memes.map(def => ({ ...def, ...(serverState.memes?.find(s => s.id === def.id) || {}) })),
+                    globalUpgrades: defaultState.globalUpgrades.map(def => ({ ...def, ...(serverState.globalUpgrades?.find(s => s.id === def.id) || {}) })),
+                    metaUpgrades: defaultState.metaUpgrades.map(def => ({ ...def, ...(serverState.metaUpgrades?.find(s => s.id === def.id) || {}) })),
                 };
-
                 set(hydratedState);
-
             } catch (error) {
                 console.error("Failed to load state from server:", error);
-                update(state => ({ ...state, isLoading: false, error: error.message }));
+                update(state => ({ ...state, isLoading: false }));
             }
         },
-        calculatePrestigeGain: (views) => {
-            if (views < PRESTIGE_THRESHOLD) return 0;
-            return Math.floor(5 * Math.log10(views / PRESTIGE_THRESHOLD));
-        },
+        calculatePrestigeGain: (views) => { if (views < PRESTIGE_THRESHOLD) return 0; return Math.floor(5 * Math.log10(views / PRESTIGE_THRESHOLD)); },
         prestigeReset: () => update(state => {
             const prestigeGain = gameStore.calculatePrestigeGain(state.totalViews);
             if (prestigeGain <= 0) return state;
@@ -249,9 +183,7 @@ function createGameStore() {
             const newState = JSON.parse(JSON.stringify(defaultState));
             newState.prestigePoints = newPrestigePoints;
             newState.metaUpgrades = newMetaUpgrades;
-            if (newMetaUpgrades.find(m => m.id === 'start_bonus_1' && m.isPurchased)) {
-                newState.totalViews = 10000;
-            }
+            if (newMetaUpgrades.find(m => m.id === 'start_bonus_1' && m.isPurchased)) { newState.totalViews = 10000; }
             saveState();
             return newState;
         }),
@@ -265,127 +197,91 @@ function createGameStore() {
             }
             return state;
         }),
-        addViews: () =>
-            update((state) => {
-                state.totalClicks++;
-                const clickFrenzyMultiplier = state.activeBoosts.clickFrenzy.isActive ? 500 : 1;
-                const prestigeMultiplier = 1 + (state.prestigePoints * 0.02);
-                const clickMultiplier = 1 + GLOBAL_UPGRADE_DEFINITIONS.filter(u => state.globalUpgrades.find(s => s.id === u.id)?.isPurchased && u.type === 'CLICK_MULTIPLIER').reduce((sum, u) => sum + u.value, 0) + state.rewardBonuses.clickMultiplier;
-                const activeMeme = state.memes[state.activeMemeIndex];
-                const baseClickViews = activeMeme.baseViews * activeMeme.level;
-                state.totalViews += baseClickViews * clickMultiplier * prestigeMultiplier * clickFrenzyMultiplier;
-                return checkAchievements(state);
-            }),
-        setBuyMultiplier: (multiplier) =>
-            update((state) => {
-                state.buyMultiplier = multiplier;
-                return state;
-            }),
-        upgradeMeme: (memeId) =>
-            update((state) => {
-                const costReduction = 1 - GLOBAL_UPGRADE_DEFINITIONS.filter(u => state.globalUpgrades.find(s => s.id === u.id)?.isPurchased && u.type === 'UPGRADE_COST_REDUCTION').reduce((sum, u) => sum + u.value, 0);
-                const memeToUpgrade = state.memes.find((m) => m.id === memeId);
-                if (!memeToUpgrade) return state;
-                const ratio = 1.6;
-                let amountToBuy = state.buyMultiplier;
-                let totalCost = 0;
-                if (amountToBuy > 0) {
-                    let currentCost = memeToUpgrade.upgradeCost;
-                    for (let i = 0; i < amountToBuy; i++) {
-                        totalCost += currentCost;
-                        currentCost = Math.round(currentCost * ratio);
-                    }
+        addViews: () => update((state) => {
+            state.totalClicks++;
+            const clickFrenzyMultiplier = state.activeBoosts.clickFrenzy.isActive ? 500 : 1;
+            const prestigeMultiplier = 1 + (state.prestigePoints * 0.02);
+            const clickMultiplier = 1 + GLOBAL_UPGRADE_DEFINITIONS.filter(u => state.globalUpgrades.find(s => s.id === u.id)?.isPurchased && u.type === 'CLICK_MULTIPLIER').reduce((sum, u) => sum + u.value, 0) + state.rewardBonuses.clickMultiplier;
+            const activeMeme = state.memes[state.activeMemeIndex];
+            const baseClickViews = activeMeme.baseViews * activeMeme.level;
+            state.totalViews += baseClickViews * clickMultiplier * prestigeMultiplier * clickFrenzyMultiplier;
+            return checkAchievements(state);
+        }),
+        setBuyMultiplier: (multiplier) => update((state) => { state.buyMultiplier = multiplier; return state; }),
+        upgradeMeme: (memeId) => update((state) => {
+            const costReduction = 1 - GLOBAL_UPGRADE_DEFINITIONS.filter(u => state.globalUpgrades.find(s => s.id === u.id)?.isPurchased && u.type === 'UPGRADE_COST_REDUCTION').reduce((sum, u) => sum + u.value, 0);
+            const memeToUpgrade = state.memes.find((m) => m.id === memeId);
+            if (!memeToUpgrade) return state;
+            const ratio = 1.6;
+            let amountToBuy = state.buyMultiplier;
+            let totalCost = 0;
+            if (amountToBuy > 0) {
+                let currentCost = memeToUpgrade.upgradeCost;
+                for (let i = 0; i < amountToBuy; i++) { totalCost += currentCost; currentCost = Math.round(currentCost * ratio); }
+            } else {
+                let currentCost = memeToUpgrade.upgradeCost;
+                let affordableLevels = 0;
+                let availableViews = state.totalViews;
+                while (availableViews >= currentCost * costReduction) {
+                    availableViews -= currentCost * costReduction;
+                    affordableLevels++;
+                    currentCost = Math.round(currentCost * ratio);
+                }
+                amountToBuy = affordableLevels;
+                totalCost = 0;
+                for(let i=0; i<amountToBuy; i++) { totalCost += memeToUpgrade.upgradeCost * Math.pow(ratio, i); }
+                totalCost = Math.round(totalCost);
+            }
+            const finalTotalCost = totalCost * costReduction;
+            if (amountToBuy > 0 && state.totalViews >= finalTotalCost) {
+                state.totalViews -= finalTotalCost;
+                memeToUpgrade.level += amountToBuy;
+                memeToUpgrade.upgradeCost = Math.round(memeToUpgrade.upgradeCost * Math.pow(ratio, amountToBuy));
+            }
+            return checkAchievements(state);
+        }),
+        unlockMeme: (memeId) => update((state) => {
+            const memeToUnlock = state.memes.find((m) => m.id === memeId);
+            if (memeToUnlock && !memeToUnlock.isUnlocked && state.totalViews >= memeToUnlock.unlockCost) {
+                state.totalViews -= memeToUnlock.unlockCost;
+                memeToUnlock.isUnlocked = true;
+            }
+            return checkAchievements(state);
+        }),
+        purchaseGlobalUpgrade: (upgradeId) => update((state) => {
+            const upgradeDef = GLOBAL_UPGRADE_DEFINITIONS.find(d => d.id === upgradeId);
+            const upgradeState = state.globalUpgrades.find(u => u.id === upgradeId);
+            if (upgradeDef && upgradeState && !upgradeState.isPurchased && state.totalViews >= upgradeDef.cost) {
+                state.totalViews -= upgradeDef.cost;
+                upgradeState.isPurchased = true;
+                saveState();
+            }
+            return checkAchievements(state);
+        }),
+        setActiveMeme: (index) => update((state) => { if (state.memes[index].isUnlocked) { state.activeMemeIndex = index; } return state; }),
+        setView: (viewName) => update((state) => { state.activeView = viewName; return state; }),
+        clearOfflineReport: () => update(state => { state.offlineReport = null; return state; }),
+        clickFloatingBonus: () => update(state => {
+            if (state.floatingBonus.isActive) {
+                const now = Date.now();
+                const randomChoice = Math.random();
+                if (randomChoice < 0.15) {
+                    state.activeBoosts.clickFrenzy = { isActive: true, expiry: now + 15 * 1000 };
+                } else if (randomChoice < 0.30) {
+                    state.activeBoosts.incomeMultiplier = { isActive: true, expiry: now + 60 * 1000 };
                 } else {
-                    let currentCost = memeToUpgrade.upgradeCost;
-                    let affordableLevels = 0;
-                    let availableViews = state.totalViews;
-                    while (availableViews >= currentCost * costReduction) {
-                        availableViews -= currentCost * costReduction;
-                        affordableLevels++;
-                        currentCost = Math.round(currentCost * ratio);
-                    }
-                    amountToBuy = affordableLevels;
-                    totalCost = 0;
-                    for(let i=0; i<amountToBuy; i++) {
-                        totalCost += memeToUpgrade.upgradeCost * Math.pow(ratio, i);
-                    }
-                    totalCost = Math.round(totalCost);
+                    const prestigeMultiplier = 1 + (state.prestigePoints * 0.02);
+                    const passiveMultiplier = 1 + GLOBAL_UPGRADE_DEFINITIONS.filter(u => state.globalUpgrades.find(s => s.id === u.id)?.isPurchased && u.type === 'PASSIVE_MULTIPLIER').reduce((sum, u) => sum + u.value, 0) + state.rewardBonuses.passiveMultiplier;
+                    let viewsPerSecond = 0;
+                    for (const meme of state.memes) { if (meme.isUnlocked) { viewsPerSecond += meme.passiveViews * meme.level; } }
+                    const totalVps = viewsPerSecond * passiveMultiplier * prestigeMultiplier;
+                    const reward = (totalVps * 60 * 15) + (state.totalViews * 0.05);
+                    state.totalViews += reward;
                 }
-                const finalTotalCost = totalCost * costReduction;
-                if (amountToBuy > 0 && state.totalViews >= finalTotalCost) {
-                    state.totalViews -= finalTotalCost;
-                    memeToUpgrade.level += amountToBuy;
-                    memeToUpgrade.upgradeCost = Math.round(memeToUpgrade.upgradeCost * Math.pow(ratio, amountToBuy));
-                }
-                return checkAchievements(state);
-            }),
-        unlockMeme: (memeId) =>
-            update((state) => {
-                const memeToUnlock = state.memes.find((m) => m.id === memeId);
-                if (memeToUnlock && !memeToUnlock.isUnlocked && state.totalViews >= memeToUnlock.unlockCost) {
-                    state.totalViews -= memeToUnlock.unlockCost;
-                    memeToUnlock.isUnlocked = true;
-                }
-                return checkAchievements(state);
-            }),
-        purchaseGlobalUpgrade: (upgradeId) =>
-            update((state) => {
-                const upgradeDef = GLOBAL_UPGRADE_DEFINITIONS.find(d => d.id === upgradeId);
-                const upgradeState = state.globalUpgrades.find(u => u.id === upgradeId);
-                if (upgradeDef && upgradeState && !upgradeState.isPurchased && state.totalViews >= upgradeDef.cost) {
-                    state.totalViews -= upgradeDef.cost;
-                    upgradeState.isPurchased = true;
-                    saveState();
-                }
-                return checkAchievements(state);
-            }),
-        setActiveMeme: (index) =>
-            update((state) => {
-                if (state.memes[index].isUnlocked) {
-                    state.activeMemeIndex = index;
-                }
-                return state;
-            }),
-        setView: (viewName) =>
-            update((state) => {
-                state.activeView = viewName;
-                return state;
-            }),
-        clearOfflineReport: () =>
-            update(state => {
-                state.offlineReport = null;
-                return state;
-            }),
-        clickFloatingBonus: () =>
-            update(state => {
-                if (state.floatingBonus.isActive) {
-                    const now = Date.now();
-                    const randomChoice = Math.random();
-
-                    if (randomChoice < 0.15) {
-                        state.activeBoosts.clickFrenzy = {
-                            isActive: true,
-                            expiry: now + 15 * 1000
-                        };
-                    } else if (randomChoice < 0.30) {
-                        state.activeBoosts.incomeMultiplier = {
-                            isActive: true,
-                            expiry: now + 60 * 1000
-                        };
-                    } else {
-                        const prestigeMultiplier = 1 + (state.prestigePoints * 0.02);
-                        const passiveMultiplier = 1 + GLOBAL_UPGRADE_DEFINITIONS.filter(u => state.globalUpgrades.find(s => s.id === u.id)?.isPurchased && u.type === 'PASSIVE_MULTIPLIER').reduce((sum, u) => sum + u.value, 0) + state.rewardBonuses.passiveMultiplier;
-                        let viewsPerSecond = 0;
-                        for (const meme of state.memes) { if (meme.isUnlocked) { viewsPerSecond += meme.passiveViews * meme.level; } }
-                        const totalVps = viewsPerSecond * passiveMultiplier * prestigeMultiplier;
-                        const reward = (totalVps * 60 * 15) + (state.totalViews * 0.05);
-                        state.totalViews += reward;
-                    }
-
-                    state.floatingBonus.isActive = false;
-                }
-                return state;
-            }),
+                state.floatingBonus.isActive = false;
+            }
+            return state;
+        }),
     };
 }
 

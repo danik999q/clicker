@@ -17,6 +17,7 @@
 		"vite": "^6.2.6"
 	},
 	"dependencies": {
-		"@telegram-apps/sdk-svelte": "^2.0.30"
+		"@telegram-apps/sdk-svelte": "^2.0.30",
+		"@tonconnect/ui": "^2.2.0"
 	}
 }

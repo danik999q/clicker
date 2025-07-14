@@ -6,6 +6,7 @@
     import AchievementsView from '$lib/components/AchievementsView.svelte';
     import ReferralView from '$lib/components/ReferralView.svelte';
     import LeaderboardView from '$lib/components/LeaderboardView.svelte';
+    import AccountView from '$lib/components/AccountView.svelte';
     import ControlPanel from '$lib/components/ControlPanel.svelte';
     import WelcomeBack from '$lib/components/WelcomeBack.svelte';
     import { formatNumber } from '$lib/utils.js';
@@ -118,6 +119,8 @@
                 <ReferralView />
             {:else if $gameStore.activeView === 'leaderboard'}
                 <LeaderboardView />
+            {:else if $gameStore.activeView === 'account'}
+                <AccountView />
             {/if}
         </main>
 
