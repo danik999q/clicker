@@ -4,7 +4,7 @@
     import { formatNumber } from '$lib/utils.js';
     import {browser} from "$app/environment";
 
-    const API_BASE_URL = 'https://07011887c5c5.ngrok-free.app/api'; // или ваш ngrok URL
+    const API_BASE_URL = 'https://9184b45d8bb6.ngrok-free.app/api'; // или ваш ngrok URL
 
     let buttonText = 'Копировать';
     let referrals = [];

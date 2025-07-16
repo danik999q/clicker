@@ -7,6 +7,7 @@
     import ReferralView from '$lib/components/ReferralView.svelte';
     import LeaderboardView from '$lib/components/LeaderboardView.svelte';
     import AccountView from '$lib/components/AccountView.svelte';
+    import DailyQuestView from '$lib/components/DailyQuestView.svelte';
     import ControlPanel from '$lib/components/ControlPanel.svelte';
     import WelcomeBack from '$lib/components/WelcomeBack.svelte';
     import { formatNumber } from '$lib/utils.js';
@@ -63,7 +64,6 @@
     $: viewsPerSecond = (() => {
         if ($gameStore.isLoading || !$gameStore.memes) return 0;
 
-        // --- ИЗМЕНЕНИЕ 3: Применяем множитель от усиления к расчёту ВПС ---
         const incomeBoostMultiplier = $gameStore.activeBoosts.incomeMultiplier.isActive ? 7 : 1;
         const prestigeMultiplier = 1 + ($gameStore.prestigePoints * 0.02);
         const globalPassiveMultiplier = 1 + (GLOBAL_UPGRADE_DEFINITIONS || []).filter((u) => $gameStore.globalUpgrades.find(s => s.id === u.id)?.isPurchased && u.type === 'PASSIVE_MULTIPLIER').reduce((sum, u) => sum + u.value, 0) + ($gameStore.rewardBonuses?.passiveMultiplier || 0);
@@ -121,6 +121,8 @@
                 <LeaderboardView />
             {:else if $gameStore.activeView === 'account'}
                 <AccountView />
+            {:else if $gameStore.activeView === 'daily'}
+                <DailyQuestView />
             {/if}
         </main>
 

@@ -15,9 +15,17 @@ export const ACHIEVEMENT_DEFINITIONS = [
     { id: 'clicks_1', name: 'Залипала', description: 'Сделать 500 кликов.', rewardDescription: '+1% к доходу от кликов', checkCondition: (state) => state.totalClicks >= 500, applyReward: (state) => { state.rewardBonuses.clickMultiplier += 0.01; } },
     { id: 'unlock_1', name: 'Коллекционер', description: 'Разблокировать второй мем.', rewardDescription: '+3% к пассивному доходу', checkCondition: (state) => state.memes[1].isUnlocked, applyReward: (state) => { state.rewardBonuses.passiveMultiplier += 0.03; } }
 ];
+
+export const DAILY_QUEST_DEFINITIONS = [
+    { id: 'daily_clicks_1', name: 'Энергичный кликер', description: 'Сделать 2,000 кликов.', target: 2000, metric: 'dailyClicks', reward: { type: 'prestigePoints', value: 1 } },
+    { id: 'daily_views_1', name: 'Начало хайпа', description: 'Заработать 100,000 просмотров за сегодня.', target: 100000, metric: 'dailyViews', reward: { type: 'prestigePoints', value: 1 } },
+    { id: 'daily_upgrades_1', name: 'Инвестор', description: 'Купить 50 уровней для любого мема.', target: 50, metric: 'dailyLevels', reward: { type: 'prestigePoints', value: 2 } },
+    { id: 'daily_bonus_1', name: 'Счастливчик', description: 'Поймать 3 случайных бонуса.', target: 3, metric: 'dailyBonuses', reward: { type: 'prestigePoints', value: 3 } },
+];
+
 export const PRESTIGE_THRESHOLD = 1e12;
 
-const API_BASE_URL = 'https://07011887c5c5.ngrok-free.app/api';
+const API_BASE_URL = 'https://9184b45d8bb6.ngrok-free.app/api';
 
 function createGameStore() {
     const defaultState = {
@@ -47,11 +55,54 @@ function createGameStore() {
         activeBoosts: {
             clickFrenzy: { isActive: false, expiry: 0 },
             incomeMultiplier: { isActive: false, expiry: 0 }
+        },
+        daily: {
+            lastReset: new Date().toISOString().split('T')[0],
+            quests: [],
+            progress: {
+                dailyClicks: 0,
+                dailyViews: 0,
+                dailyLevels: 0,
+                dailyBonuses: 0,
+            }
         }
     };
 
     const store = writable(defaultState);
     const { subscribe, set, update } = store;
+
+    function checkAndResetDailies(state) {
+        const today = new Date().toISOString().split('T')[0];
+        if (state.daily.lastReset !== today) {
+            console.log("New day! Resetting daily quests.");
+            state.daily.lastReset = today;
+            state.daily.progress = { dailyClicks: 0, dailyViews: 0, dailyLevels: 0, dailyBonuses: 0 };
+
+            const shuffled = [...DAILY_QUEST_DEFINITIONS].sort(() => 0.5 - Math.random());
+            state.daily.quests = shuffled.slice(0, 3).map(q => ({
+                id: q.id,
+                progress: 0,
+                isCompleted: false,
+                isClaimed: false
+            }));
+        }
+        return state;
+    }
+
+    function updateDailyProgress(state, metric, value) {
+        state.daily.progress[metric] = (state.daily.progress[metric] || 0) + value;
+
+        for (const quest of state.daily.quests) {
+            const questDef = DAILY_QUEST_DEFINITIONS.find(d => d.id === quest.id);
+            if (questDef && questDef.metric === metric && !quest.isCompleted) {
+                quest.progress = state.daily.progress[metric];
+                if (quest.progress >= questDef.target) {
+                    quest.isCompleted = true;
+                }
+            }
+        }
+        return state;
+    }
 
     function checkAchievements(state) {
         for (const achievementDef of ACHIEVEMENT_DEFINITIONS) {
@@ -156,7 +207,7 @@ function createGameStore() {
                         offlineReport = { timeAway: effectiveOfflineSeconds, viewsEarned: viewsEarnedOffline };
                     }
                 }
-                const hydratedState = {
+                let hydratedState = {
                     ...defaultState,
                     ...serverState,
                     telegramId: telegramId,
@@ -168,6 +219,8 @@ function createGameStore() {
                     globalUpgrades: defaultState.globalUpgrades.map(def => ({ ...def, ...(serverState.globalUpgrades?.find(s => s.id === def.id) || {}) })),
                     metaUpgrades: defaultState.metaUpgrades.map(def => ({ ...def, ...(serverState.metaUpgrades?.find(s => s.id === def.id) || {}) })),
                 };
+                hydratedState = checkAndResetDailies(hydratedState);
+
                 set(hydratedState);
             } catch (error) {
                 console.error("Failed to load state from server:", error);
@@ -204,7 +257,11 @@ function createGameStore() {
             const clickMultiplier = 1 + GLOBAL_UPGRADE_DEFINITIONS.filter(u => state.globalUpgrades.find(s => s.id === u.id)?.isPurchased && u.type === 'CLICK_MULTIPLIER').reduce((sum, u) => sum + u.value, 0) + state.rewardBonuses.clickMultiplier;
             const activeMeme = state.memes[state.activeMemeIndex];
             const baseClickViews = activeMeme.baseViews * activeMeme.level;
-            state.totalViews += baseClickViews * clickMultiplier * prestigeMultiplier * clickFrenzyMultiplier;
+            const viewsEarned = baseClickViews * clickMultiplier * prestigeMultiplier * clickFrenzyMultiplier;
+            state.totalViews += viewsEarned;
+
+            state = updateDailyProgress(state, 'dailyClicks', 1);
+            state = updateDailyProgress(state, 'dailyViews', viewsEarned);
             return checkAchievements(state);
         }),
         setBuyMultiplier: (multiplier) => update((state) => { state.buyMultiplier = multiplier; return state; }),
@@ -236,6 +293,7 @@ function createGameStore() {
             if (amountToBuy > 0 && state.totalViews >= finalTotalCost) {
                 state.totalViews -= finalTotalCost;
                 memeToUpgrade.level += amountToBuy;
+                state = updateDailyProgress(state, 'dailyLevels', amountToBuy);
                 memeToUpgrade.upgradeCost = Math.round(memeToUpgrade.upgradeCost * Math.pow(ratio, amountToBuy));
             }
             return checkAchievements(state);
@@ -263,6 +321,7 @@ function createGameStore() {
         clearOfflineReport: () => update(state => { state.offlineReport = null; return state; }),
         clickFloatingBonus: () => update(state => {
             if (state.floatingBonus.isActive) {
+                state = updateDailyProgress(state, 'dailyBonuses', 1);
                 const now = Date.now();
                 const randomChoice = Math.random();
                 if (randomChoice < 0.15) {
@@ -279,6 +338,19 @@ function createGameStore() {
                     state.totalViews += reward;
                 }
                 state.floatingBonus.isActive = false;
+            }
+            return state;
+        }),
+        claimDailyReward: (questId) => update(state => {
+            const quest = state.daily.quests.find(q => q.id === questId);
+            const questDef = DAILY_QUEST_DEFINITIONS.find(d => d.id === questId);
+
+            if (quest && quest.isCompleted && !quest.isClaimed && questDef) {
+                quest.isClaimed = true;
+                if (questDef.reward.type === 'prestigePoints') {
+                    state.prestigePoints += questDef.reward.value;
+                }
+                saveState();
             }
             return state;
         }),
