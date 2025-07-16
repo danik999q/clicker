@@ -1,6 +1,7 @@
 <script>
     import { onMount, onDestroy } from 'svelte';
-    import { gameStore, GLOBAL_UPGRADE_DEFINITIONS } from '$lib/store.js';
+    import { gameStore } from '$lib/store.js';
+    import { calculatePassiveIncome } from '$lib/gameLogic.js';
     import GameView from '$lib/components/GameView.svelte';
     import UpgradesView from '$lib/components/UpgradesView.svelte';
     import AchievementsView from '$lib/components/AchievementsView.svelte';
@@ -61,22 +62,7 @@
         return `${secondsLeft}с`;
     }
 
-    $: viewsPerSecond = (() => {
-        if ($gameStore.isLoading || !$gameStore.memes) return 0;
-
-        const incomeBoostMultiplier = $gameStore.activeBoosts.incomeMultiplier.isActive ? 7 : 1;
-        const prestigeMultiplier = 1 + ($gameStore.prestigePoints * 0.02);
-        const globalPassiveMultiplier = 1 + (GLOBAL_UPGRADE_DEFINITIONS || []).filter((u) => $gameStore.globalUpgrades.find(s => s.id === u.id)?.isPurchased && u.type === 'PASSIVE_MULTIPLIER').reduce((sum, u) => sum + u.value, 0) + ($gameStore.rewardBonuses?.passiveMultiplier || 0);
-
-        const baseVps = ($gameStore.memes || []).reduce((total, meme) => {
-            if (meme.isUnlocked) {
-                return total + meme.passiveViews * meme.level;
-            }
-            return total;
-        }, 0);
-
-        return baseVps * globalPassiveMultiplier * prestigeMultiplier * incomeBoostMultiplier;
-    })();
+    $: viewsPerSecond = $gameStore.isLoading ? 0 : calculatePassiveIncome($gameStore);
 </script>
 
 {#if !$gameStore.isLoading && $gameStore.offlineReport}
@@ -195,7 +181,6 @@
         color: var(--text-secondary);
     }
 
-    /* --- ИЗМЕНЕНИЕ 5: Новые стили для таймеров --- */
     .boost-timers {
         margin-top: 1rem;
         display: flex;

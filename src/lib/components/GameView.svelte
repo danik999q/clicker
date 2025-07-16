@@ -1,5 +1,6 @@
 <script>
     import { gameStore } from '$lib/store.js';
+    import { calculateClickValue } from '$lib/gameLogic.js';
     import FloatingNumber from './FloatingNumber.svelte';
     import FloatingBonus from './FloatingBonus.svelte';
 
@@ -8,11 +9,7 @@
     let floatingNumbers = [];
 
     function handleClick(event) {
-        const clickMultiplier = 1 +
-            $gameStore.globalUpgrades.filter(u => u.isPurchased && u.type === 'CLICK_MULTIPLIER').reduce((sum, u) => sum + u.value, 0) +
-            $gameStore.rewardBonuses.clickMultiplier;
-
-        const viewsEarned = Math.ceil((activeMeme.baseViews * activeMeme.level) * clickMultiplier);
+        const viewsEarned = calculateClickValue($gameStore);
 
         gameStore.addViews();
 

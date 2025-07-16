@@ -1,48 +1,44 @@
 <script>
-    import { onMount } from 'svelte';
     import { gameStore } from '$lib/store.js';
     import { formatNumber } from '$lib/utils.js';
-    import {browser} from "$app/environment";
+    import { browser } from "$app/environment";
 
-    const API_BASE_URL = 'https://9184b45d8bb6.ngrok-free.app/api'; // или ваш ngrok URL
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     let buttonText = 'Копировать';
     let referrals = [];
-    let isLoading = true; // По умолчанию загрузка
+    let isLoading = true;
 
-    $: userId = $gameStore.referralSystem.userId;
-
-    // --- ИСПРАВЛЕНИЕ ЗДЕСЬ: Заменяем onMount на реактивный блок $: ---
-    // Этот код будет автоматически запускаться каждый раз, когда userId меняется
-    $: if (userId && browser) {
+    $: if ($gameStore.telegramId && browser) {
         isLoading = true;
-        // --- ИСПРАВЛЕНИЕ ЗДЕСЬ: Добавляем заголовок в fetch ---
-        fetch(`${API_BASE_URL}/users/${userId}/referrals`, {
+        fetch(`${API_BASE_URL}/users/${$gameStore.telegramId}/referrals`, {
             headers: {
                 'ngrok-skip-browser-warning': 'true'
             }
         })
             .then(response => {
                 if (response.ok) return response.json();
-                throw new Error('Network response was not ok.');
+                // Улучшенная обработка ошибок для отладки
+                throw new Error(`Network response was not ok. Status: ${response.status}`);
             })
             .then(data => {
-                referrals = data;
+                referrals = data.referrals || [];
             })
             .catch(error => {
                 console.error("Failed to fetch referrals:", error);
+                referrals = [];
             })
             .finally(() => {
                 isLoading = false;
             });
     }
 
-    $: referralLink = userId ? `https://t.me/viralmanagerbot?start=${userId}` : 'Загрузка ссылки...';
+    $: referralLink = $gameStore.telegramId ? `https://t.me/viralmanagerbot?start=${$gameStore.telegramId}` : 'Загрузка ссылки...';
     $: shareText = 'Залетай в Brainrot Manager и помоги мне захватить интернет! 🧠\n\n';
-    $: shareUrl = userId ? `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}` : '#';
+    $: shareUrl = $gameStore.telegramId ? `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}` : '#';
 
     function copyLink() {
-        if (!userId) return;
+        if (!$gameStore.telegramId) return;
         navigator.clipboard.writeText(referralLink).then(() => {
             buttonText = 'Скопировано!';
             setTimeout(() => {
@@ -58,10 +54,10 @@
 
     <div class="link-container">
         <input type="text" readonly value={referralLink} />
-        <button on:click={copyLink} class="copy-button" disabled={!userId}>{buttonText}</button>
+        <button on:click={copyLink} class="copy-button" disabled={!$gameStore.telegramId}>{buttonText}</button>
     </div>
 
-    <a href={shareUrl} target="_blank" rel="noopener noreferrer" class="share-button" class:disabled={!userId}>
+    <a href={shareUrl} target="_blank" rel="noopener noreferrer" class="share-button" class:disabled={!$gameStore.telegramId}>
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12a12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472c-.18 1.898-.962 6.502-1.36 8.627c-.17.9-.502 1.2-1.003 1.23a1.536 1.536 0 0 1-1.213-.534c-.42-.426-1.002-.98-1.57-1.488c-.993-.86-1.42-1.23-1.01-1.892c.18-.29.35-.558.53-.792c.18-.23.37-.47.58-.72c.49-.57.98-.98 1.52-1.512c.07-.07.13-.13.2-.2l.89-1.02c.13-.15.06-.34-.13-.22c-.17.1-.34.2-.5.31c-.24.16-.48.32-.72.48c-.72.47-1.45.94-2.17 1.4c-.45.28-.83.42-1.15.4a.78.78 0 0 1-.6-.24a1.394 1.394 0 0 1-.4-1.002c-.03-1.04.2-1.9.46-2.58c.27-.68.75-1.23 1.4-1.68c2.1-1.38 3.56-2.2 4.98-2.91c.2-.1.39-.18.59-.26c.09-.04.18-.08.27-.12c.02-.01.03-.01.04-.02z"/></svg>
         <span>Пригласить друга</span>
     </a>

@@ -1,5 +1,6 @@
 <script>
-    import { gameStore, DAILY_QUEST_DEFINITIONS } from '$lib/store.js';
+    import { DAILY_QUEST_DEFINITIONS } from '$lib/constants.js';
+    import { gameStore } from '$lib/store.js';
     import { formatNumber } from '$lib/utils.js';
 </script>
 
@@ -8,7 +9,7 @@
     <p class="description">Выполняйте задания каждый день, чтобы получить ценные награды!</p>
 
     <div class="quest-list">
-        {#if !$gameStore.daily || $gameStore.daily.quests.length === 0}
+        {#if $gameStore.daily.quests.length === 0}
             <p>Новые задания появятся завтра.</p>
         {:else}
             {#each $gameStore.daily.quests as quest (quest.id)}

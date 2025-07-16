@@ -1,38 +1,15 @@
 <script>
-    import { gameStore, META_UPGRADE_DEFINITIONS, PRESTIGE_THRESHOLD, GLOBAL_UPGRADE_DEFINITIONS, ACHIEVEMENT_DEFINITIONS } from '$lib/store.js';
+    import {
+        GLOBAL_UPGRADE_DEFINITIONS,
+        META_UPGRADE_DEFINITIONS,
+        ACHIEVEMENT_DEFINITIONS,
+        PRESTIGE_THRESHOLD
+    } from '$lib/constants.js';
+    import { gameStore } from '$lib/store.js';
     import { formatNumber } from '$lib/utils.js';
+    import { calculateUpgradeCost } from '$lib/gameLogic.js';
 
-    const state = gameStore;
     let activeTab = 'memes';
-    const costRatio = 1.6;
-
-    $: costReduction = 1 - ($state.globalUpgrades || [])
-        .filter(u => u.isPurchased && GLOBAL_UPGRADE_DEFINITIONS.find(def => def.id === u.id)?.type === 'UPGRADE_COST_REDUCTION')
-        .reduce((sum, u) => sum + GLOBAL_UPGRADE_DEFINITIONS.find(def => def.id === u.id).value, 0);
-
-
-    function calculateCost(startCost, amount) {
-        if (amount <= 0) return 0;
-        let total = 0;
-        let currentCost = startCost;
-        for (let i = 0; i < amount; i++) {
-            total += currentCost;
-            currentCost = Math.round(currentCost * costRatio);
-        }
-        return total;
-    }
-
-    function calculateMaxAffordable(startCost, totalViews, currentCostReduction) {
-        let currentCost = startCost;
-        let affordableLevels = 0;
-        let availableViews = totalViews;
-        while (availableViews >= currentCost * currentCostReduction) {
-            availableViews -= currentCost * currentCostReduction;
-            currentCost = Math.round(currentCost * costRatio);
-            affordableLevels++;
-        }
-        return affordableLevels;
-    }
 
     function handlePrestige() {
         if (
@@ -53,7 +30,7 @@
         <button class="tab-button" class:active={activeTab === 'achievements'} on:click={() => (activeTab = 'achievements')}>
             Задания
         </button>
-        {#if $state.totalViews >= PRESTIGE_THRESHOLD / 10}
+        {#if $gameStore.totalViews >= PRESTIGE_THRESHOLD / 10}
             <button class="tab-button prestige" class:active={activeTab === 'prestige'} on:click={() => (activeTab = 'prestige')}>
                 Престиж 🧠
             </button>
@@ -62,22 +39,21 @@
 
     <div class="buy-multiplier-toggle" class:hidden={activeTab !== 'memes'}>
         <span>x</span>
-        <button class:active={$state.buyMultiplier === 1} on:click={() => gameStore.setBuyMultiplier(1)}>1</button>
-        <button class:active={$state.buyMultiplier === 10} on:click={() => gameStore.setBuyMultiplier(10)}>10</button>
-        <button class:active={$state.buyMultiplier === 100} on:click={() => gameStore.setBuyMultiplier(100)}>100</button>
-        <button class:active={$state.buyMultiplier === -1} on:click={() => gameStore.setBuyMultiplier(-1)}>MAX</button>
+        <button class:active={$gameStore.buyMultiplier === 1} on:click={() => gameStore.setBuyMultiplier(1)}>1</button>
+        <button class:active={$gameStore.buyMultiplier === 10} on:click={() => gameStore.setBuyMultiplier(10)}>10</button>
+        <button class:active={$gameStore.buyMultiplier === 100} on:click={() => gameStore.setBuyMultiplier(100)}>100</button>
+        <button class:active={$gameStore.buyMultiplier === -1} on:click={() => gameStore.setBuyMultiplier(-1)}>MAX</button>
     </div>
 
     <div id="upgrades-list">
         {#if activeTab === 'memes'}
-            {#each $state.memes as meme, index (meme.id)}
-                {@const amount = $state.buyMultiplier > 0 ? $state.buyMultiplier : calculateMaxAffordable(meme.upgradeCost, $state.totalViews, costReduction)}
-                {@const cost = calculateCost(meme.upgradeCost, amount) * costReduction}
-                {@const clickPower = ($state.memes[index].baseViews * $state.memes[index].level) * (1 + ($state.rewardBonuses?.clickMultiplier || 0))}
-                {@const passivePower = ($state.memes[index].passiveViews * $state.memes[index].level) * (1 + ($state.rewardBonuses?.passiveMultiplier || 0))}
+            {#each $gameStore.memes as meme, index (meme.id)}
+                {@const { totalCost, levelsToBuy } = calculateUpgradeCost($gameStore, meme.id, $gameStore.buyMultiplier)}
+                {@const clickPower = (meme.baseViews * meme.level) * (1 + ($gameStore.rewardBonuses?.clickMultiplier || 0))}
+                {@const passivePower = (meme.passiveViews * meme.level) * (1 + ($gameStore.rewardBonuses?.passiveMultiplier || 0))}
 
                 {#if meme.isUnlocked}
-                    <div class="upgrade-item" class:active={index === $state.activeMemeIndex} on:click={() => gameStore.setActiveMeme(index)}>
+                    <div class="upgrade-item" class:active={index === $gameStore.activeMemeIndex} on:click={() => gameStore.setActiveMeme(index)}>
                         <div class="upgrade-item-info">
                             <p class="item-name">{meme.name}</p>
                             <p class="item-stats">
@@ -86,10 +62,10 @@
                         </div>
                         <button
                                 class="upgrade-button"
-                                disabled={$state.totalViews < cost || amount === 0}
+                                disabled={$gameStore.totalViews < totalCost || levelsToBuy === 0}
                                 on:click|stopPropagation={() => gameStore.upgradeMeme(meme.id)}
                         >
-                            LVL UP +{amount}<span>({formatNumber(cost)})</span>
+                            LVL UP +{levelsToBuy}<span>({formatNumber(totalCost)})</span>
                         </button>
                     </div>
                 {:else}
@@ -100,7 +76,7 @@
                         </div>
                         <button
                                 class="unlock-button"
-                                disabled={$state.totalViews < meme.unlockCost}
+                                disabled={$gameStore.totalViews < meme.unlockCost}
                                 on:click={() => gameStore.unlockMeme(meme.id)}
                         >
                             Открыть <span>({formatNumber(meme.unlockCost)})</span>
@@ -110,7 +86,7 @@
             {/each}
         {:else if activeTab === 'global'}
             {#each GLOBAL_UPGRADE_DEFINITIONS as upgradeDef (upgradeDef.id)}
-                {@const upgradeState = $state.globalUpgrades.find((u) => u.id === upgradeDef.id)}
+                {@const upgradeState = $gameStore.globalUpgrades.find((u) => u.id === upgradeDef.id)}
                 {#if upgradeState}
                     <div class="upgrade-item" class:purchased={upgradeState.isPurchased}>
                         <div class="upgrade-item-info">
@@ -119,7 +95,7 @@
                         </div>
                         <button
                                 class="purchase-button"
-                                disabled={upgradeState.isPurchased || $state.totalViews < upgradeDef.cost}
+                                disabled={upgradeState.isPurchased || $gameStore.totalViews < upgradeDef.cost}
                                 on:click={() => gameStore.purchaseGlobalUpgrade(upgradeDef.id)}
                         >
                             {#if upgradeState.isPurchased}
@@ -133,9 +109,9 @@
             {/each}
         {:else if activeTab === 'achievements'}
             {#each ACHIEVEMENT_DEFINITIONS as achievement (achievement.id)}
-                <div class="upgrade-item achievement" class:completed={$state.achievementsProgress[achievement.id]}>
+                <div class="upgrade-item achievement" class:completed={$gameStore.achievementsProgress[achievement.id]}>
                     <div class="achievement-icon">
-                        {#if $state.achievementsProgress[achievement.id]}✓{:else}❓{/if}
+                        {#if $gameStore.achievementsProgress[achievement.id]}✓{:else}❓{/if}
                     </div>
                     <div class="upgrade-item-info">
                         <p class="item-name">{achievement.name}</p>
@@ -148,18 +124,18 @@
             {/each}
         {:else if activeTab === 'prestige'}
             <div class="prestige-info">
-                <p>Текущая Эссенция Мемов: <strong>{$state.prestigePoints}</strong> 🧠</p>
-                <p>Даёт <strong>+{$state.prestigePoints * 2}%</strong> ко всему доходу.</p>
+                <p>Текущая Эссенция Мемов: <strong>{$gameStore.prestigePoints}</strong> 🧠</p>
+                <p>Даёт <strong>+{$gameStore.prestigePoints * 2}%</strong> ко всему доходу.</p>
                 <hr />
-                {#if $state.totalViews >= PRESTIGE_THRESHOLD}
-                    <p>При сбросе вы получите: <strong>{gameStore.calculatePrestigeGain($state.totalViews)}</strong> 🧠</p>
+                {#if $gameStore.totalViews >= PRESTIGE_THRESHOLD}
+                    <p>При сбросе вы получите: <strong>{gameStore.calculatePrestigeGain($gameStore.totalViews)}</strong> 🧠</p>
                     <button class="prestige-button" on:click={handlePrestige}>Сбросить Прогресс</button>
                 {:else}
                     <p>Для сброса необходимо: <strong>{formatNumber(PRESTIGE_THRESHOLD)}</strong> просмотров.</p>
                 {/if}
             </div>
             {#each META_UPGRADE_DEFINITIONS as metaDef (metaDef.id)}
-                {@const metaState = $state.metaUpgrades.find((m) => m.id === metaDef.id)}
+                {@const metaState = $gameStore.metaUpgrades.find((m) => m.id === metaDef.id)}
                 {#if metaState}
                     <div class="upgrade-item" class:purchased={metaState.isPurchased}>
                         <div class="upgrade-item-info">
@@ -168,7 +144,7 @@
                         </div>
                         <button
                                 class="purchase-button"
-                                disabled={metaState.isPurchased || $state.prestigePoints < metaDef.cost}
+                                disabled={metaState.isPurchased || $gameStore.prestigePoints < metaDef.cost}
                                 on:click={() => gameStore.purchaseMetaUpgrade(metaDef.id)}
                         >
                             {#if metaState.isPurchased}
@@ -185,6 +161,7 @@
 </div>
 
 <style>
+    /* Стили остаются без изменений */
     .view-container {
         width: 100%;
         padding: 1.5rem;
