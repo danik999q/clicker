@@ -1,5 +1,5 @@
 <script>
-    import { gameStore } from '$lib/store.js';
+    import { gameStore } from '$lib/store.ts';
 </script>
 
 <button class="floating-bonus" on:click={() => gameStore.clickFloatingBonus()}>

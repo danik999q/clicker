@@ -1,6 +1,6 @@
 <script>
-    import { gameStore } from '$lib/store.js';
-    import { calculateClickValue } from '$lib/gameLogic.js';
+    import { gameStore } from '$lib/store.ts';
+    import { calculateClickValue } from '$lib/gameLogic.ts';
     import FloatingNumber from './FloatingNumber.svelte';
     import FloatingBonus from './FloatingBonus.svelte';
 

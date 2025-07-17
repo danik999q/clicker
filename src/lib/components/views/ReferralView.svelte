@@ -1,6 +1,6 @@
 <script>
-    import { gameStore } from '$lib/store.js';
-    import { formatNumber } from '$lib/utils.js';
+    import { gameStore } from '$lib/store.ts';
+    import { formatNumber } from '$lib/utils.ts';
     import { browser } from "$app/environment";
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;

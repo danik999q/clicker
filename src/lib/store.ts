@@ -3,7 +3,8 @@ import { browser } from '$app/environment';
 import * as api from './api';
 import * as constants from './constants';
 import { calculatePassiveIncome, calculateClickValue, calculateUpgradeCost } from './gameLogic';
-import type { GameState, DailyQuest, Meme, Upgrade, OfflineReport, UpgradeTreeState, UpgradeDefinition } from './types';
+import type { GameState, DailyQuest, Meme, Upgrade, OfflineReport, UpgradeTreeState } from './types';
+import type { UpgradeDefinition } from './constants';
 
 function initializeUpgradeTrees(): GameState['upgradeTrees'] {
     const trees: GameState['upgradeTrees'] = {};
@@ -85,7 +86,7 @@ function createGameStore() {
 
     function checkAndResetDailies(state: GameState): GameState {
         const today = new Date().toISOString().split('T')[0];
-        if (state.daily.lastReset !== today) {
+        if (state.daily.lastReset !== today || state.daily.quests.length === 0) {
             state.daily.lastReset = today;
             state.daily.progress = { dailyClicks: 0, dailyViews: 0, dailyLevels: 0, dailyBonuses: 0 };
             const shuffled = [...constants.DAILY_QUEST_DEFINITIONS].sort(() => 0.5 - Math.random());
@@ -103,7 +104,7 @@ function createGameStore() {
         const state = get(store);
         if (state.isLoading || !state.telegramId) return;
 
-        const { isLoading, activeView, offlineReport, floatingBonus, daily, ...savableState } = state;
+        const { isLoading, activeView, offlineReport, floatingBonus, ...savableState } = state;
 
         api.saveUserState(state.telegramId, savableState);
     }
@@ -233,14 +234,16 @@ function createGameStore() {
             if (!treeDef) return state;
 
             let nodeDef: UpgradeDefinition | null = null;
+            let parentDef: UpgradeDefinition | null = null;
 
-            function findNode(current: UpgradeDefinition) {
+            function findNode(current: UpgradeDefinition, parent: UpgradeDefinition | null = null) {
                 if (nodeDef) return;
                 if (current.id === nodeId) {
                     nodeDef = current;
+                    parentDef = parent;
                     return;
                 }
-                current.children.forEach(findNode);
+                current.children.forEach(child => findNode(child, current));
             }
             findNode(treeDef);
 
@@ -249,13 +252,10 @@ function createGameStore() {
             const treeState = state.upgradeTrees[treeId];
             const nodeState = treeState[nodeId];
 
-            const arePrerequisitesMet = nodeDef.prerequisites.every(
-                prereqId => treeState[prereqId]?.isPurchased
-            );
-
             const isAffordable = state.totalViews >= nodeDef.cost;
+            const isParentPurchased = !parentDef || treeState[parentDef.id]?.isPurchased;
 
-            if (isAffordable && arePrerequisitesMet && !nodeState.isPurchased) {
+            if (isAffordable && isParentPurchased && !nodeState.isPurchased) {
                 state.totalViews -= nodeDef.cost;
                 nodeState.isPurchased = true;
             }

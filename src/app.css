@@ -1,15 +1,11 @@
 :root {
-    --bg-color: #030712; /* Очень темный, почти черный фон */
+    --bg-color: #030712;
     --surface-color: #111827;
     --border-color: #374151;
-
-    /* Делаем акцентные цвета более яркими и сочными */
-    --primary-accent: #10b981; /* Ярко-зеленый */
-    --secondary-accent: #a78bfa; /* Ярко-фиолетовый */
-
+    --primary-accent: #10b981;
+    --secondary-accent: #a78bfa;
     --text-primary: #f9fafb;
     --text-secondary: #9ca3af;
-
     --font-sans: 'Inter', sans-serif;
 }
 
@@ -23,46 +19,50 @@ body {
     height: 100vh;
     margin: 0;
     user-select: none;
-    overflow: hidden; /* Прячем все, что выходит за пределы экрана */
+    overflow: hidden;
     position: relative;
 }
 
-h1, h2 {
+h1,
+h2 {
     color: var(--text-primary);
     font-weight: 700;
 }
 
-/* --- НОВЫЕ СТИЛИ ДЛЯ АНИМИРОВАННОГО ФОНА --- */
 .aurora-blob {
     position: fixed;
     width: 400px;
     height: 400px;
     border-radius: 50%;
-    z-index: -1; /* Размещаем позади всего контента */
+    z-index: -1;
     opacity: 0.3;
-    filter: blur(100px); /* Сильное размытие для мягкости */
+    filter: blur(100px);
 }
 
-/* Первая капля */
 .aurora-blob:nth-child(2) {
     background-color: var(--primary-accent);
     animation: move-blob-1 25s infinite alternate ease-in-out;
 }
 
-/* Вторая капля */
 .aurora-blob:nth-child(3) {
     background-color: var(--secondary-accent);
     animation: move-blob-2 30s infinite alternate ease-in-out;
 }
 
-/* Анимация движения для первой капли */
 @keyframes move-blob-1 {
-    from { transform: translate(10vw, -20vh) rotate(0deg); }
-    to { transform: translate(80vw, 50vh) rotate(360deg); }
+    from {
+        transform: translate(10vw, -20vh) rotate(0deg);
+    }
+    to {
+        transform: translate(80vw, 50vh) rotate(360deg);
+    }
 }
 
-/* Анимация движения для второй капли */
 @keyframes move-blob-2 {
-    from { transform: translate(60vw, 70vh) rotate(0deg); }
-    to { transform: translate(-20vw, 10vh) rotate(-360deg); }
+    from {
+        transform: translate(60vw, 70vh) rotate(0deg);
+    }
+    to {
+        transform: translate(-20vw, 10vh) rotate(-360deg);
+    }
 }

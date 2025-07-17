@@ -1,6 +1,6 @@
 <script>
     import { onMount } from 'svelte';
-    import { gameStore } from '$lib/store.js';
+    import { gameStore } from '$lib/store.ts';
     import { TonConnectUI } from '@tonconnect/ui';
 
     let connectedAddress = '';

@@ -1,5 +1,5 @@
 <script>
-    import { gameStore } from '$lib/store.js';
+    import { gameStore } from '$lib/store.ts';
 </script>
 
 <nav class="control-panel">

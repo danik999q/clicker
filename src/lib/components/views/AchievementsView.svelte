@@ -1,7 +1,7 @@
 <script>
-    import { DAILY_QUEST_DEFINITIONS } from '$lib/constants.js';
-    import { gameStore } from '$lib/store.js';
-    import { formatNumber } from '$lib/utils.js';
+    import { DAILY_QUEST_DEFINITIONS } from '$lib/constants.ts';
+    import { gameStore } from '$lib/store.ts';
+    import { formatNumber } from '$lib/utils.ts';
 </script>
 
 <div class="view-container">
