@@ -1,17 +1,39 @@
 <script lang="ts">
     import { passiveIncomeTree, clickPowerTree } from '$lib/constants';
     import UpgradeNode from './UpgradeNode.svelte';
+
+    let activeTree: 'passive' | 'click' = 'passive';
 </script>
 
 <div class="trees-container">
-    <h2>Дерево улучшений</h2>
-    <div class="tree">
-        <h3>Пассивный доход</h3>
-        <UpgradeNode node={passiveIncomeTree} treeId={passiveIncomeTree.id} parentPurchased={true} />
+    <div class="tabs">
+        <button class="tab-button" class:active={activeTree === 'passive'} on:click={() => (activeTree = 'passive')}>
+            Пассивный доход
+        </button>
+        <button class="tab-button" class:active={activeTree === 'click'} on:click={() => (activeTree = 'click')}>
+            Сила клика
+        </button>
     </div>
-    <div class="tree">
-        <h3>Сила клика</h3>
-        <UpgradeNode node={clickPowerTree} treeId={clickPowerTree.id} parentPurchased={true} />
+
+    <div class="tree-content">
+        {#if activeTree === 'passive'}
+            <div class="grid-layout passive-tree">
+                <UpgradeNode node={passiveIncomeTree} treeId={passiveIncomeTree.id} gridPosition="1 / 2" />
+                <UpgradeNode node={passiveIncomeTree.children[0]} treeId={passiveIncomeTree.id} gridPosition="2 / 1" />
+                <UpgradeNode node={passiveIncomeTree.children[1]} treeId={passiveIncomeTree.id} gridPosition="2 / 3" />
+                {#if passiveIncomeTree.children[0].children[0]}
+                    <UpgradeNode node={passiveIncomeTree.children[0].children[0]} treeId={passiveIncomeTree.id} gridPosition="3 / 1" />
+                {/if}
+            </div>
+        {:else if activeTree === 'click'}
+            <div class="grid-layout click-tree">
+                <UpgradeNode node={clickPowerTree} treeId={clickPowerTree.id} gridPosition="1 / 1" />
+                <UpgradeNode node={clickPowerTree.children[0]} treeId={clickPowerTree.id} gridPosition="2 / 1" />
+                {#if clickPowerTree.children[0].children[0]}
+                    <UpgradeNode node={clickPowerTree.children[0].children[0]} treeId={clickPowerTree.id} gridPosition="3 / 1" />
+                {/if}
+            </div>
+        {/if}
     </div>
 </div>
 
@@ -19,17 +41,85 @@
     .trees-container {
         width: 100%;
         max-width: 900px;
-        overflow-x: auto;
-        padding: 20px;
+        padding: 20px 0;
     }
-    h2, h3 {
-        text-align: center;
+    .tabs {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border-color);
     }
-    .tree {
-        margin-bottom: 40px;
-        padding: 20px;
+    .tab-button {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        position: relative;
+        top: 1px;
+        transition: color 0.2s ease;
+    }
+    .tab-button.active {
+        color: var(--primary-accent);
+        border-bottom: 2px solid var(--primary-accent);
+    }
+    .tree-content {
+        padding: 40px 20px;
         border: 1px solid var(--border-color);
         border-radius: 12px;
         background-color: rgba(0, 0, 0, 0.2);
+        min-height: 400px;
+    }
+    .grid-layout {
+        display: grid;
+        position: relative;
+        align-items: center;
+        justify-items: center;
+    }
+    .passive-tree {
+        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-rows: repeat(3, 140px);
+    }
+    .click-tree {
+        grid-template-columns: 1fr;
+        grid-template-rows: repeat(3, 140px);
+    }
+    .grid-layout :global(.node-wrapper)::before,
+    .grid-layout :global(.node-wrapper)::after {
+        content: '';
+        position: absolute;
+        background-color: var(--secondary-accent);
+        opacity: 0.5;
+        z-index: -1;
+    }
+    .passive-tree :global(.node-wrapper[style="grid-area: 1 / 2;"])::after {
+        width: 2px;
+        height: 70px;
+        top: 100%;
+        left: 50%;
+        transform: translate(-50%, -20px);
+    }
+    .passive-tree :global(.node-wrapper[style="grid-area: 2 / 1;"])::before,
+    .passive-tree :global(.node-wrapper[style="grid-area: 2 / 3;"])::before {
+        width: 2px;
+        height: 70px;
+        bottom: 100%;
+        left: 50%;
+        transform: translate(-50%, 20px);
+    }
+    .passive-tree :global(.node-wrapper[style="grid-area: 2 / 1;"])::after {
+        width: 100%;
+        height: 2px;
+        top: -20%;
+        left: 50%;
+    }
+    .click-tree :global(.node-wrapper:not(:last-child))::after {
+        width: 2px;
+        height: 100%;
+        top: 50%;
+        left: 50%;
+        transform: translateX(-50%);
     }
 </style>

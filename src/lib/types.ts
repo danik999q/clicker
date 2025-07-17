@@ -59,6 +59,7 @@ export interface UpgradeDefinition {
     name: string;
     description: string;
     cost: number;
+    prerequisites: string[];
     effect: {
         type: 'PASSIVE_MULTIPLIER' | 'CLICK_MULTIPLIER' | 'UPGRADE_COST_REDUCTION';
         value: number;

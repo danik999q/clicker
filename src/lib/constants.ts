@@ -16,6 +16,7 @@ export const passiveIncomeTree: UpgradeDefinition = {
     name: 'Основы пассивного дохода',
     description: 'Начать путь к автоматизированному заработку просмотров.',
     cost: 10000,
+    prerequisites: [],
     effect: { type: 'PASSIVE_MULTIPLIER', value: 0.10 },
     children: [
         {
@@ -23,23 +24,16 @@ export const passiveIncomeTree: UpgradeDefinition = {
             name: 'Вечный двигатель мемов',
             description: 'Пассивный доход от всех мемов +15%.',
             cost: 25000,
+            prerequisites: ['passive_root'],
             effect: { type: 'PASSIVE_MULTIPLIER', value: 0.15 },
-            children: [
-                {
-                    id: 'passive_boost_2',
-                    name: 'Квантовая теория мемов',
-                    description: 'Пассивный доход дополнительно увеличен на 50%.',
-                    cost: 100000,
-                    effect: { type: 'PASSIVE_MULTIPLIER', value: 0.50 },
-                    children: []
-                }
-            ]
+            children: []
         },
         {
             id: 'cost_reduction_1',
             name: 'Оптовые закупки',
             description: 'Снижает стоимость улучшения мемов на 5%.',
             cost: 50000,
+            prerequisites: ['passive_root'],
             effect: { type: 'UPGRADE_COST_REDUCTION', value: 0.05 },
             children: []
         }
@@ -51,26 +45,9 @@ export const clickPowerTree: UpgradeDefinition = {
     name: 'Сила первого клика',
     description: 'Увеличить базовую силу клика.',
     cost: 5000,
+    prerequisites: [],
     effect: { type: 'CLICK_MULTIPLIER', value: 0.10 },
-    children: [
-        {
-            id: 'click_boost_1',
-            name: 'Мощные перчатки',
-            description: 'Сила всех кликов увеличена на 25%.',
-            cost: 15000,
-            effect: { type: 'CLICK_MULTIPLIER', value: 0.25 },
-            children: [
-                {
-                    id: 'click_boost_2',
-                    name: 'Титановые пальцы',
-                    description: 'Сила всех кликов увеличена ещё на 50%.',
-                    cost: 75000,
-                    effect: { type: 'CLICK_MULTIPLIER', value: 0.50 },
-                    children: []
-                }
-            ]
-        }
-    ]
+    children : [],
 };
 
 export const UPGRADE_TREES: UpgradeDefinition[] = [passiveIncomeTree, clickPowerTree];

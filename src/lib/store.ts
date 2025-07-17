@@ -233,16 +233,14 @@ function createGameStore() {
             if (!treeDef) return state;
 
             let nodeDef: UpgradeDefinition | null = null;
-            let parentDef: UpgradeDefinition | null = null;
 
-            function findNode(current: UpgradeDefinition, parent: UpgradeDefinition | null = null) {
+            function findNode(current: UpgradeDefinition) {
                 if (nodeDef) return;
                 if (current.id === nodeId) {
                     nodeDef = current;
-                    parentDef = parent;
                     return;
                 }
-                current.children.forEach(child => findNode(child, current));
+                current.children.forEach(findNode);
             }
             findNode(treeDef);
 
@@ -251,10 +249,13 @@ function createGameStore() {
             const treeState = state.upgradeTrees[treeId];
             const nodeState = treeState[nodeId];
 
-            const isAffordable = state.totalViews >= nodeDef.cost;
-            const isParentPurchased = !parentDef || treeState[parentDef.id]?.isPurchased;
+            const arePrerequisitesMet = nodeDef.prerequisites.every(
+                prereqId => treeState[prereqId]?.isPurchased
+            );
 
-            if (isAffordable && isParentPurchased && !nodeState.isPurchased) {
+            const isAffordable = state.totalViews >= nodeDef.cost;
+
+            if (isAffordable && arePrerequisitesMet && !nodeState.isPurchased) {
                 state.totalViews -= nodeDef.cost;
                 nodeState.isPurchased = true;
             }
