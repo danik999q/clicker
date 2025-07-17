@@ -1,13 +1,9 @@
-<script>
-    import {
-        GLOBAL_UPGRADE_DEFINITIONS,
-        META_UPGRADE_DEFINITIONS,
-        ACHIEVEMENT_DEFINITIONS,
-        PRESTIGE_THRESHOLD
-    } from '$lib/constants.js';
-    import { gameStore } from '$lib/store.js';
-    import { formatNumber } from '$lib/utils.js';
-    import { calculateUpgradeCost } from '$lib/gameLogic.js';
+<script lang="ts">
+    import { META_UPGRADE_DEFINITIONS, ACHIEVEMENT_DEFINITIONS, PRESTIGE_THRESHOLD } from '$lib/constants';
+    import { gameStore } from '$lib/store';
+    import { formatNumber } from '$lib/utils';
+    import { calculateUpgradeCost } from '$lib/gameLogic';
+    import UpgradeTree from './UpgradeTree.svelte';
 
     let activeTab = 'memes';
 
@@ -26,7 +22,7 @@
 <div class="view-container">
     <div class="tabs">
         <button class="tab-button" class:active={activeTab === 'memes'} on:click={() => (activeTab = 'memes')}>Мемы</button>
-        <button class="tab-button" class:active={activeTab === 'global'} on:click={() => (activeTab = 'global')}>Глобальные</button>
+        <button class="tab-button" class:active={activeTab === 'global'} on:click={() => (activeTab = 'global')}>Улучшения</button>
         <button class="tab-button" class:active={activeTab === 'achievements'} on:click={() => (activeTab = 'achievements')}>
             Задания
         </button>
@@ -85,28 +81,7 @@
                 {/if}
             {/each}
         {:else if activeTab === 'global'}
-            {#each GLOBAL_UPGRADE_DEFINITIONS as upgradeDef (upgradeDef.id)}
-                {@const upgradeState = $gameStore.globalUpgrades.find((u) => u.id === upgradeDef.id)}
-                {#if upgradeState}
-                    <div class="upgrade-item" class:purchased={upgradeState.isPurchased}>
-                        <div class="upgrade-item-info">
-                            <p class="item-name">{upgradeDef.name}</p>
-                            <p class="item-stats">{upgradeDef.description}</p>
-                        </div>
-                        <button
-                                class="purchase-button"
-                                disabled={upgradeState.isPurchased || $gameStore.totalViews < upgradeDef.cost}
-                                on:click={() => gameStore.purchaseGlobalUpgrade(upgradeDef.id)}
-                        >
-                            {#if upgradeState.isPurchased}
-                                Куплено
-                            {:else}
-                                Купить <span>({formatNumber(upgradeDef.cost)})</span>
-                            {/if}
-                        </button>
-                    </div>
-                {/if}
-            {/each}
+            <UpgradeTree />
         {:else if activeTab === 'achievements'}
             {#each ACHIEVEMENT_DEFINITIONS as achievement (achievement.id)}
                 <div class="upgrade-item achievement" class:completed={$gameStore.achievementsProgress[achievement.id]}>
@@ -161,7 +136,6 @@
 </div>
 
 <style>
-    /* Стили остаются без изменений */
     .view-container {
         width: 100%;
         padding: 1.5rem;
