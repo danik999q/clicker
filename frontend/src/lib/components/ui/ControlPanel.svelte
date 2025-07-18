@@ -81,7 +81,7 @@
         color: var(--text-secondary);
         padding: 0.75rem 1rem;
         cursor: pointer;
-        transition: color 0.2s ease, background-color 0.2s;
+        /* transition: color 0.2s ease, background-color 0.2s; */
         border-radius: 8px;
         flex-grow: 1;
         display: flex;
@@ -98,5 +98,5 @@
     }
     .nav-button.active {
         color: var(--primary-accent);
-    }
+    }    
 </style>

@@ -164,7 +164,7 @@
     }
     .tabs {
         display: flex;
-        gap: 0.5rem;
+        justify-content: space-between;
         margin-bottom: 1.5rem;
         border-bottom: 1px solid var(--border-color);
         flex-shrink: 0;
@@ -264,11 +264,12 @@
     .unlock-button,
     .purchase-button {
         color: #0d1117;
+        width: 140px;
         border: none;
-        padding: 0.5rem 1rem;
-        font-size: 0.875rem;
+        padding: 0.75rem 0.8rem;
+        font-size: 0.775rem;
         font-weight: 700;
-        border-radius: 6px;
+        border-radius: 8px;
         cursor: pointer;
         white-space: nowrap;
         flex-shrink: 0;

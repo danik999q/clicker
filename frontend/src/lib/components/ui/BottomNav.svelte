@@ -29,18 +29,19 @@
 <style>
     .bottom-nav {
         display: flex;
-        justify-content: space-around;
+        justify-content: space-between;
         background-color: var(--surface-color);
         border-top: 1px solid var(--border-color);
         padding: 0.5rem 0;
         flex-shrink: 0;
     }
+    
     button {
         background: none;
         border: none;
         color: var(--text-secondary);
-        padding: 0.75rem;
-        font-size: 1rem;
+        padding: 0.45rem;
+        font-size: 0.95rem;
         font-weight: 500;
         cursor: pointer;
         flex-grow: 1;
@@ -48,5 +49,11 @@
     button.active {
         color: var(--primary-accent);
         font-weight: 600;
+    }
+    @media(max-width: 360px) {
+        button {
+            padding: 0.4rem;
+            font-size: 0.9rem;
+        }
     }
 </style>
