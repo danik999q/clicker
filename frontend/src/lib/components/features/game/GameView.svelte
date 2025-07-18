@@ -56,7 +56,7 @@
         gap: 2rem;
         width: 100%;
         position: relative;
-        justify-content: center; /* Центрируем контент по вертикали */
+        justify-content: center;
         flex-grow: 1;
     }
 
