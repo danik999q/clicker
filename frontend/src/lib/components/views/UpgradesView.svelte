@@ -32,9 +32,8 @@
         <div class="tabs">
             <button class="tab-button" class:active={activeTab === 'memes'} on:click={() => (activeTab = 'memes')}>Мемы</button>
             <button class="tab-button" class:active={activeTab === 'global'} on:click={() => (activeTab = 'global')}>Улучшения</button>
-            <button class="tab-button" class:active={activeTab === 'achievements'} on:click={() => (activeTab = 'achievements')}>
-                Задания
-            </button>
+            <button class="tab-button" class:active={activeTab === 'achievements'} on:click={() => (activeTab = 'achievements')}>Задания</button>
+
             {#if $gameStore.totalViews >= PRESTIGE_THRESHOLD / 10}
                 <button class="tab-button prestige" class:active={activeTab === 'prestige'} on:click={() => (activeTab = 'prestige')}>
                     Престиж 🧠
@@ -164,6 +163,7 @@
     }
     .tabs {
         display: flex;
+        overflow: hidden;
         justify-content: space-between;
         margin-bottom: 1.5rem;
         border-bottom: 1px solid var(--border-color);
@@ -173,7 +173,7 @@
         background: none;
         border: none;
         color: var(--text-secondary);
-        padding: 0.5rem 1rem;
+        padding: 0.5rem 0.2rem;
         font-size: 1rem;
         font-weight: 500;
         cursor: pointer;

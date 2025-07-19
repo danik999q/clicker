@@ -48,6 +48,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m-7.5-2.964A4.5 4.5 0 1115 5.25v2.25m-3.75 2.25a4.5 4.5 0 10-9 0v2.25" />
         </svg>
     </button>
+    
 
     <button
             class="nav-button"
