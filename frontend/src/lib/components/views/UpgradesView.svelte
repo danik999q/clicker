@@ -5,19 +5,9 @@
     import { calculateUpgradeCost } from '$lib/gameLogic';
     import UpgradeTree from '../features/upgrades/UpgradeTree.svelte';
     import Header from '../ui/Header.svelte';
+    import PrestigeView from './PrestigeView.svelte';
 
     let activeTab = 'memes';
-
-    function handlePrestige() {
-        if (
-            window.confirm(
-                'Вы уверены, что хотите сбросить прогресс? Вы получите очки престижа, но все улучшения мемов и деревья улучшений будут сброшены.'
-            )
-        ) {
-            gameStore.prestigeReset();
-            activeTab = 'memes';
-        }
-    }
 
     function handleKeyboardClick(event: KeyboardEvent, action: () => void) {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -95,8 +85,10 @@
                         </div>
                     {/if}
                 {/each}
+
             {:else if activeTab === 'global'}
                 <UpgradeTree />
+
             {:else if activeTab === 'achievements'}
                 {#each ACHIEVEMENT_DEFINITIONS as achievement (achievement.id)}
                     <div class="upgrade-item achievement" class:completed={$gameStore.achievementsProgress[achievement.id]}>
@@ -112,40 +104,9 @@
                         </div>
                     </div>
                 {/each}
+
             {:else if activeTab === 'prestige'}
-                <div class="prestige-info">
-                    <p>Текущая Эссенция Мемов: <strong>{$gameStore.prestigePoints}</strong> 🧠</p>
-                    <p>Даёт <strong>+{$gameStore.prestigePoints * 2}%</strong> ко всему доходу.</p>
-                    <hr />
-                    {#if $gameStore.totalViews >= PRESTIGE_THRESHOLD}
-                        <p>При сбросе вы получите: <strong>{gameStore.calculatePrestigeGain($gameStore.totalViews)}</strong> 🧠</p>
-                        <button class="prestige-button" on:click={handlePrestige}>Сбросить Прогресс</button>
-                    {:else}
-                        <p>Для сброса необходимо: <strong>{formatNumber(PRESTIGE_THRESHOLD)}</strong> просмотров.</p>
-                    {/if}
-                </div>
-                {#each META_UPGRADE_DEFINITIONS as metaDef (metaDef.id)}
-                    {@const metaState = $gameStore.metaUpgrades.find((m) => m.id === metaDef.id)}
-                    {#if metaState}
-                        <div class="upgrade-item" class:purchased={metaState.isPurchased}>
-                            <div class="upgrade-item-info">
-                                <p class="item-name">{metaDef.name}</p>
-                                <p class="item-stats">{metaDef.description}</p>
-                            </div>
-                            <button
-                                    class="purchase-button"
-                                    disabled={metaState.isPurchased || $gameStore.prestigePoints < metaDef.cost}
-                                    on:click={() => gameStore.purchaseMetaUpgrade(metaDef.id)}
-                            >
-                                {#if metaState.isPurchased}
-                                    Куплено
-                                {:else}
-                                    {metaDef.cost} 🧠
-                                {/if}
-                            </button>
-                        </div>
-                    {/if}
-                {/each}
+                <PrestigeView />
             {/if}
         </div>
     </div>
@@ -154,6 +115,7 @@
 <style>
     .view-container, .content-area, #tab-content {
         display: flex;
+        overflow-x: hidden;
         flex-direction: column;
         flex-grow: 1;
     }
@@ -163,6 +125,7 @@
     }
     .tabs {
         display: flex;
+        max-width: 100%;
         overflow: hidden;
         justify-content: space-between;
         margin-bottom: 1.5rem;
@@ -242,9 +205,6 @@
         background-color: #1c2a3a;
     }
     .upgrade-item.locked,
-    .upgrade-item.purchased {
-        opacity: 0.6;
-    }
     .upgrade-item-info {
         text-align: left;
         flex-grow: 1;
@@ -262,58 +222,17 @@
     }
     .upgrade-button,
     .unlock-button,
-    .purchase-button {
-        color: #0d1117;
-        width: 140px;
-        border: none;
-        padding: 0.75rem 0.8rem;
-        font-size: 0.775rem;
-        font-weight: 700;
-        border-radius: 8px;
-        cursor: pointer;
-        white-space: nowrap;
-        flex-shrink: 0;
-        margin-left: 1rem;
-    }
     .upgrade-button {
         background-color: var(--primary-accent);
     }
     .unlock-button,
-    .purchase-button {
-        background-color: var(--secondary-accent);
-    }
     .upgrade-button:disabled,
     .unlock-button:disabled,
-    .purchase-button:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-    }
-    .purchase-button[disabled] {
-        opacity: 0.6;
-    }
     .tab-button.prestige {
         color: #f0abfc;
     }
     .tab-button.prestige.active {
         border-bottom-color: #f0abfc;
-    }
-    .prestige-info {
-        text-align: center;
-        padding: 1rem;
-        background-color: var(--surface-color);
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        margin-bottom: 1rem;
-    }
-    .prestige-button {
-        background-color: #be185d;
-        color: white;
-        width: 100%;
-        padding: 1rem;
-        font-size: 1.1rem;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
     }
     .achievement {
         cursor: default;

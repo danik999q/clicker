@@ -150,6 +150,11 @@ function createGameStore() {
         });
     }
 
+    function calculatePrestigeGain(views: number): number {
+        if (views < constants.PRESTIGE_THRESHOLD) return 0;
+        return Math.floor(5 * Math.log10(views / constants.PRESTIGE_THRESHOLD));
+    }
+
     return {
         subscribe,
         set,
@@ -277,8 +282,7 @@ function createGameStore() {
             return state;
         }),
         prestigeReset: () => update(state => {
-            const gain = (views: number) => (views < constants.PRESTIGE_THRESHOLD) ? 0 : Math.floor(5 * Math.log10(views / constants.PRESTIGE_THRESHOLD));
-            const prestigeGain = gain(state.totalViews);
+            const prestigeGain = calculatePrestigeGain(state.totalViews);
             if (prestigeGain <= 0) return state;
 
             const newState: GameState = {
@@ -293,6 +297,7 @@ function createGameStore() {
             }
             return checkAndResetDailies(newState);
         }),
+        calculatePrestigeGain,
         purchaseMetaUpgrade: (upgradeId: string) => update(state => {
             const metaDef = constants.META_UPGRADE_DEFINITIONS.find(u => u.id === upgradeId);
             const metaState = state.metaUpgrades.find(u => u.id === upgradeId);
