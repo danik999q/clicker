@@ -323,10 +323,21 @@
         margin-right: 1rem;
     }
     .achievement-reward {
-        font-size: 0.8rem;
+        padding-left: 5px;
+        font-size: 0.75rem;
         font-weight: 700;
         color: var(--primary-accent);
         text-align: right;
         flex-shrink: 0;
+    }
+    @media(max-width: 410px) {
+        .achievement-icon {
+            font-size: 1.3rem;
+            margin-right: 0.8rem;
+        }
+        .achievement-reward {
+            max-width: 120px;
+            text-align: center;
+        }
     }
 </style>

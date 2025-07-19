@@ -9,6 +9,10 @@
     --font-sans: 'Inter', sans-serif;
 }
 
+input, textarea, button, select, a {
+    -webkit-tap-highlight-color: transparent;
+}
+
 body {
     background-color: var(--bg-color);
     color: var(--text-primary);
