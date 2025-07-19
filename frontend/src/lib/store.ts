@@ -4,7 +4,7 @@ import * as api from './api';
 import * as constants from './constants';
 import { calculatePassiveIncome, calculateClickValue, calculateUpgradeCost } from './gameLogic';
 import type { GameState, DailyQuest, Meme, Upgrade, OfflineReport, UpgradeTreeState } from './types';
-import type { UpgradeDefinition } from './constants';
+import type { UpgradeDefinition } from '$lib/types';
 
 function initializeUpgradeTrees(): GameState['upgradeTrees'] {
     const trees: GameState['upgradeTrees'] = {};

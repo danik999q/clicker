@@ -1,66 +1,71 @@
-<script>
-    import { onMount } from 'svelte';
-    import { gameStore } from '$lib/store.ts';
-    import { TonConnectUI } from '@tonconnect/ui';
+<script lang="ts">
+    import { onMount, onDestroy } from 'svelte';
+    import { gameStore } from '$lib/store';
+    import { getTonConnectUI } from '$lib/ton-connect';
 
     let connectedAddress = '';
+    let unsubscribe;
+    let tonConnectUI: import('@tonconnect/ui').TonConnectUI;
 
     onMount(() => {
-        const tonConnectUI = new TonConnectUI({
-            manifestUrl: 'https://clicker-roan.vercel.app/tonconnect-manifest.json',
-            buttonRootId: 'ton-connect-button-root'
-        });
+        tonConnectUI = getTonConnectUI();
 
-        tonConnectUI.onStatusChange(wallet => {
-            if (wallet) {
-                const address = wallet.account.address;
-                connectedAddress = address;
-                gameStore.updateWalletAddress(address);
-            } else {
-                connectedAddress = '';
-                gameStore.updateWalletAddress(null);
+        if (tonConnectUI) {
+            unsubscribe = tonConnectUI.onStatusChange(wallet => {
+                if (wallet) {
+                    const address = wallet.account.address;
+                    connectedAddress = address;
+                    gameStore.updateWalletAddress(address);
+                } else {
+                    connectedAddress = '';
+                    gameStore.updateWalletAddress(null);
+                }
+            });
+
+            if (tonConnectUI.wallet) {
+                connectedAddress = tonConnectUI.wallet.account.address;
             }
-        });
+        }
     });
 
-    function truncateAddress(address) {
+    onDestroy(() => {
+        if (unsubscribe) {
+            unsubscribe();
+        }
+    });
+
+    function handleConnectClick() {
+        if (!tonConnectUI) return;
+
+        if (tonConnectUI.connected) {
+            tonConnectUI.disconnect();
+        } else {
+            tonConnectUI.openModal();
+        }
+    }
+
+    function truncateAddress(address: string) {
         if (!address) return '';
         return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
     }
 </script>
 
-<div class="view-container">
-    <h2>Личный кабинет</h2>
+<div class="account-card">
+    <p class="label">TON Кошелёк</p>
 
-    <div class="account-card">
-        <p class="label">Ваш игровой ID</p>
-        <p class="value">{$gameStore.telegramId}</p>
-    </div>
-
-    <div class="account-card">
-        <p class="label">TON Кошелёк</p>
-
-        <div id="ton-connect-button-root"></div>
-
+    <button class="connect-button" on:click={handleConnectClick}>
         {#if connectedAddress}
-            <div class="wallet-info">
-                <p class="label" style="margin-top: 1rem;">Привязанный адрес:</p>
-                <p class="value connected">{truncateAddress(connectedAddress)}</p>
-            </div>
+            Отключить {truncateAddress(connectedAddress)}
+        {:else}
+            Подключить кошелёк
         {/if}
-    </div>
+    </button>
 </div>
 
 <style>
-    .view-container {
-        width: 100%;
-        padding: 1.5rem;
-        box-sizing: border-box;
-    }
-    h2 { margin-top: 0; text-align: center; }
     .account-card {
         background-color: #111827;
-        border: 1px solid var(--border-color);
+        border: 1px solid #374151;
         border-radius: 12px;
         padding: 1.5rem;
         margin-top: 1.5rem;
@@ -68,28 +73,23 @@
     }
     .label {
         font-size: 0.9rem;
-        color: var(--text-secondary);
+        color: #9ca3af;
         margin: 0 0 0.5rem 0;
     }
-    .value {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        word-break: break-all;
-    }
-    .value.connected {
-        color: var(--primary-accent);
-    }
-
-    #ton-connect-button-root {
-        display: flex;
-        justify-content: center;
+    .connect-button {
+        background-color: #007aff;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        width: 100%;
         margin-top: 1rem;
+        transition: background-color 0.2s;
     }
-
-    .wallet-info {
-        border-top: 1px solid var(--border-color);
-        margin-top: 1.5rem;
-        padding-top: 1.5rem;
+    .connect-button:hover {
+        background-color: #005ecb;
     }
 </style>
