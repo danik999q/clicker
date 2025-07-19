@@ -48,14 +48,9 @@ export async function registerUser(telegramId: number, username: string): Promis
 export function saveUserState(telegramId: number, gameState: SavableGameState): void {
     if (!telegramId) return;
 
-    fetch(`${API_BASE_URL}/users/${telegramId}/state`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ gameState }),
-        keepalive: true
-    }).catch(error => {
-        console.error('Failed to save user state:', error);
-    });
+    const url = `${API_BASE_URL}/users/${telegramId}/state`;
+    const data = JSON.stringify({ gameState });
+    const blob = new Blob([data], { type: 'application/json; charset=UTF-8' });
+
+    navigator.sendBeacon(url, blob);
 }

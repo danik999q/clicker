@@ -3,14 +3,13 @@ import { browser } from '$app/environment';
 import * as api from './api';
 import * as constants from './constants';
 import { calculatePassiveIncome, calculateClickValue, calculateUpgradeCost } from './gameLogic';
-import type { GameState, DailyQuest, Meme, Upgrade, OfflineReport, UpgradeTreeState } from './types';
+import type { GameState, OfflineReport, UpgradeTreeState } from './types';
 import type { UpgradeDefinition } from '$lib/types';
 
 function initializeUpgradeTrees(): GameState['upgradeTrees'] {
     const trees: GameState['upgradeTrees'] = {};
     for (const tree of constants.UPGRADE_TREES) {
         const treeState: UpgradeTreeState = {};
-
         function traverse(node: UpgradeDefinition) {
             treeState[node.id] = { isPurchased: false };
             node.children.forEach(traverse);
@@ -38,9 +37,9 @@ function createGameStore() {
         walletAddress: null,
         isWalletConnected: false,
         memes: [
-            { id: 'crocodilo', name: 'Crocodilo Bombordiro', level: 1, isUnlocked: true, unlockCost: 0, baseViews: 1, passiveViews: 0.1, upgradeCost: 10, imageUrl: '/images/crocodilo.jpeg' },
-            { id: 'sahur', name: 'Tung Tung Sahur', level: 1, isUnlocked: false, unlockCost: 500, baseViews: 5, passiveViews: 1, upgradeCost: 100, imageUrl: '/images/sahur.jpeg' },
-            { id: 'skibidi', name: 'Skibidi Toilet', level: 1, isUnlocked: false, unlockCost: 5000, baseViews: 25, passiveViews: 5, upgradeCost: 1200, imageUrl: '/images/skibidi.jpeg' }
+            { id: 'crocodilo', name: 'Crocodilo Bombordiro', level: 1, isUnlocked: true, unlockCost: 0, baseViews: 1, passiveViews: 0.5, upgradeCost: 15, imageUrl: '/images/crocodilo.jpeg' },
+            { id: 'sahur', name: 'Tung Tung Sahur', level: 1, isUnlocked: false, unlockCost: 400, baseViews: 8, passiveViews: 2, upgradeCost: 200, imageUrl: '/images/sahur.jpeg' },
+            { id: 'skibidi', name: 'Skibidi Toilet', level: 1, isUnlocked: false, unlockCost: 4500, baseViews: 40, passiveViews: 10, upgradeCost: 2500, imageUrl: '/images/skibidi.jpeg' }
         ],
         upgradeTrees: initializeUpgradeTrees(),
         metaUpgrades: constants.META_UPGRADE_DEFINITIONS.map(def => ({ id: def.id, isPurchased: false })),
@@ -59,6 +58,16 @@ function createGameStore() {
 
     const store: Writable<GameState> = writable(defaultState);
     const { subscribe, set, update } = store;
+
+    function saveState() {
+        const currentState = get(store);
+        if (currentState.isLoading || !currentState.telegramId) return;
+
+        const { isLoading, activeView, offlineReport, floatingBonus, ...savableState } = currentState;
+        savableState.lastSaveTime = Date.now();
+
+        api.saveUserState(currentState.telegramId, savableState);
+    }
 
     function checkAchievements(state: GameState): GameState {
         for (const achievementDef of constants.ACHIEVEMENT_DEFINITIONS) {
@@ -100,52 +109,48 @@ function createGameStore() {
         return state;
     }
 
-    function saveState() {
-        const state = get(store);
-        if (state.isLoading || !state.telegramId) return;
-
-        const { isLoading, activeView, offlineReport, floatingBonus, ...savableState } = state;
-
-        api.saveUserState(state.telegramId, savableState);
-    }
-
     if (browser) {
-        setInterval(() => update(state => {
-            if (state.isLoading) return state;
-            const passiveIncome = calculatePassiveIncome(state);
-            if (passiveIncome > 0) {
-                state.totalViews += passiveIncome;
-            }
-            if (passiveIncome > 0) {
-                return checkAchievements(state);
-            }
-            return state;
-        }), 1000);
+        setInterval(() => {
+            update(state => {
+                if (state.isLoading) return state;
+                const passiveIncome = calculatePassiveIncome(state);
+                if (passiveIncome > 0) {
+                    state.totalViews += passiveIncome;
+                    return checkAchievements(state);
+                }
+                return state;
+            });
+        }, 1000);
+
+        setInterval(() => {
+            update(state => {
+                if (!state.floatingBonus.isActive && Math.random() < 0.5) {
+                    state.floatingBonus = { isActive: true, x: Math.random() * 80 + 10, y: Math.random() * 80 + 10, lifetime: constants.FLOATING_BONUS_LIFETIME_S };
+                }
+                return state;
+            });
+        }, constants.FLOATING_BONUS_INTERVAL_MS);
+
+        setInterval(() => {
+            update(state => {
+                if (state.floatingBonus.isActive) {
+                    state.floatingBonus.lifetime--;
+                    if (state.floatingBonus.lifetime <= 0) state.floatingBonus.isActive = false;
+                }
+                return state;
+            });
+        }, 1000);
 
         setInterval(saveState, constants.SAVE_INTERVAL_MS);
-
-        setInterval(() => update(state => {
-            if (!state.floatingBonus.isActive && Math.random() < 0.5) {
-                state.floatingBonus = { isActive: true, x: Math.random() * 80 + 10, y: Math.random() * 80 + 10, lifetime: constants.FLOATING_BONUS_LIFETIME_S };
-            }
-            return state;
-        }), constants.FLOATING_BONUS_INTERVAL_MS);
-
-        setInterval(() => update(state => {
-            if (state.floatingBonus.isActive) {
-                state.floatingBonus.lifetime--;
-                if (state.floatingBonus.lifetime <= 0) state.floatingBonus.isActive = false;
-            }
-            return state;
-        }), 1000);
-
         window.addEventListener('beforeunload', saveState);
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'hidden') saveState();
+            if (document.visibilityState === 'hidden') {
+                saveState();
+            }
         });
     }
 
-    const self = {
+    return {
         subscribe,
         set,
         loadStateFromServer: async (telegramId: number) => {
@@ -161,11 +166,8 @@ function createGameStore() {
                         const tempState = { ...defaultState, ...serverState, upgradeTrees: {...initializeUpgradeTrees(), ...(serverState.upgradeTrees || {}) } };
                         const offlineVps = calculatePassiveIncome(tempState);
                         const viewsEarned = Math.floor(offlineVps * effectiveOfflineTime);
-                        if(serverState.totalViews) {
-                            serverState.totalViews += viewsEarned;
-                        } else {
-                            serverState.totalViews = viewsEarned;
-                        }
+
+                        serverState.totalViews = (serverState.totalViews || 0) + viewsEarned;
                         offlineReport = { timeAway: effectiveOfflineTime, viewsEarned };
                     }
                 }
@@ -173,10 +175,7 @@ function createGameStore() {
                 const hydratedState: GameState = {
                     ...defaultState,
                     ...serverState,
-                    upgradeTrees: {
-                        ...initializeUpgradeTrees(),
-                        ...(serverState.upgradeTrees || {})
-                    },
+                    upgradeTrees: { ...initializeUpgradeTrees(), ...(serverState.upgradeTrees || {}) },
                     telegramId,
                     isLoading: false,
                     offlineReport,
@@ -187,8 +186,7 @@ function createGameStore() {
             } catch (error: any) {
                 if (error.status === 404) {
                     await api.registerUser(telegramId, `user_${telegramId}`);
-                    let newState = { ...defaultState, telegramId, isLoading: false };
-                    newState = checkAndResetDailies(newState);
+                    const newState = checkAndResetDailies({ ...defaultState, telegramId, isLoading: false });
                     set(newState);
                 } else {
                     console.error("Failed to load state:", error);
@@ -196,7 +194,6 @@ function createGameStore() {
                 }
             }
         },
-
         addViews: () => update(state => {
             if (state.isLoading) return state;
             const viewsEarned = calculateClickValue(state);
@@ -228,41 +225,29 @@ function createGameStore() {
             }
             return checkAchievements(state);
         }),
-
         purchaseUpgrade: (treeId: string, nodeId: string) => update(state => {
             const treeDef = constants.UPGRADE_TREES.find(t => t.id === treeId);
             if (!treeDef) return state;
 
-            let nodeDef: UpgradeDefinition | null = null;
-            let parentDef: UpgradeDefinition | null = null;
-
-            function findNode(current: UpgradeDefinition, parent: UpgradeDefinition | null = null) {
-                if (nodeDef) return;
-                if (current.id === nodeId) {
-                    nodeDef = current;
-                    parentDef = parent;
-                    return;
-                }
-                current.children.forEach(child => findNode(child, current));
+            let nodeDef: UpgradeDefinition | undefined;
+            function findNode(current: UpgradeDefinition) {
+                if (current.id === nodeId) nodeDef = current;
+                else current.children.forEach(findNode);
             }
             findNode(treeDef);
 
             if (!nodeDef) return state;
 
             const treeState = state.upgradeTrees[treeId];
-            const nodeState = treeState[nodeId];
+            const arePrerequisitesMet = nodeDef.prerequisites.every(prereqId => treeState[prereqId]?.isPurchased);
 
-            const isAffordable = state.totalViews >= nodeDef.cost;
-            const isParentPurchased = !parentDef || treeState[parentDef.id]?.isPurchased;
-
-            if (isAffordable && isParentPurchased && !nodeState.isPurchased) {
+            if (arePrerequisitesMet && state.totalViews >= nodeDef.cost && !treeState[nodeId]?.isPurchased) {
                 state.totalViews -= nodeDef.cost;
-                nodeState.isPurchased = true;
+                treeState[nodeId].isPurchased = true;
             }
 
             return state;
         }),
-
         clickFloatingBonus: () => update(state => {
             if (!state.floatingBonus.isActive) return state;
             state = updateDailyProgress(state, 'dailyBonuses', 1);
@@ -283,34 +268,31 @@ function createGameStore() {
         claimDailyReward: (questId: string) => update(state => {
             const quest = state.daily.quests.find(q => q.id === questId);
             const questDef = constants.DAILY_QUEST_DEFINITIONS.find(d => d.id === questId);
-            if (quest && quest.isCompleted && !quest.isClaimed && questDef) {
+            if (quest?.isCompleted && !quest.isClaimed && questDef) {
                 quest.isClaimed = true;
-                if (questDef.reward.type === 'prestigePoints') state.prestigePoints += questDef.reward.value;
+                if (questDef.reward.type === 'prestigePoints') {
+                    state.prestigePoints += questDef.reward.value;
+                }
             }
             return state;
         }),
-
         prestigeReset: () => update(state => {
-            const gain = self.calculatePrestigeGain(state.totalViews);
-            if (gain <= 0) return state;
+            const gain = (views: number) => (views < constants.PRESTIGE_THRESHOLD) ? 0 : Math.floor(5 * Math.log10(views / constants.PRESTIGE_THRESHOLD));
+            const prestigeGain = gain(state.totalViews);
+            if (prestigeGain <= 0) return state;
 
             const newState: GameState = {
                 ...defaultState,
                 isLoading: false,
                 telegramId: state.telegramId,
-                prestigePoints: state.prestigePoints + gain,
+                prestigePoints: state.prestigePoints + prestigeGain,
                 metaUpgrades: state.metaUpgrades,
-                upgradeTrees: initializeUpgradeTrees(),
             };
-
             if (state.metaUpgrades.find(m => m.id === 'start_bonus_1' && m.isPurchased)) {
                 newState.totalViews = 10000;
             }
-
             return checkAndResetDailies(newState);
         }),
-
-        calculatePrestigeGain: (views: number) => (views < constants.PRESTIGE_THRESHOLD) ? 0 : Math.floor(5 * Math.log10(views / constants.PRESTIGE_THRESHOLD)),
         purchaseMetaUpgrade: (upgradeId: string) => update(state => {
             const metaDef = constants.META_UPGRADE_DEFINITIONS.find(u => u.id === upgradeId);
             const metaState = state.metaUpgrades.find(u => u.id === upgradeId);
@@ -331,8 +313,6 @@ function createGameStore() {
             return state;
         }),
     };
-
-    return self;
 }
 
 export const gameStore = createGameStore();
