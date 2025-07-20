@@ -223,6 +223,7 @@ function createGameStore() {
                     meme.upgradeCost = Math.round(meme.upgradeCost * Math.pow(constants.UPGRADE_COST_RATIO, levelsToBuy));
                 }
                 state = updateDailyProgress(state, 'dailyLevels', levelsToBuy);
+                saveState();
             }
             return checkAchievements(state);
         }),
@@ -231,6 +232,7 @@ function createGameStore() {
             if (memeToUnlock && !memeToUnlock.isUnlocked && state.totalViews >= memeToUnlock.unlockCost) {
                 state.totalViews -= memeToUnlock.unlockCost;
                 memeToUnlock.isUnlocked = true;
+                saveState();
             }
             return checkAchievements(state);
         }),
@@ -242,6 +244,7 @@ function createGameStore() {
             function findNode(current: UpgradeDefinition) {
                 if (current.id === nodeId) nodeDef = current;
                 else current.children.forEach(findNode);
+                saveState();
             }
             findNode(treeDef);
 
@@ -299,6 +302,7 @@ function createGameStore() {
                 quest.isClaimed = true;
                 if (questDef.reward.type === 'prestigePoints') {
                     state.prestigePoints += questDef.reward.value;
+                    saveState();
                 }
             }
             return state;
@@ -326,6 +330,7 @@ function createGameStore() {
             if (metaDef && metaState && !metaState.isPurchased && state.prestigePoints >= metaDef.cost) {
                 state.prestigePoints -= metaDef.cost;
                 metaState.isPurchased = true;
+                saveState();
             }
             return state;
         }),

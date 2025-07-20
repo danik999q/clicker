@@ -2,7 +2,7 @@ import type { AchievementDefinition, DailyQuestDefinition, MetaUpgradeDefinition
 
 export const UPGRADE_COST_RATIO = 1.12;
 export const UPGRADE_NODE_COST_RATIO = 1.8;
-export const SAVE_INTERVAL_MS = 5000;
+export const SAVE_INTERVAL_MS = 2000;
 export const FLOATING_BONUS_INTERVAL_MS = 30000;
 export const FLOATING_BONUS_LIFETIME_S = 10;
 export const CLICK_FRENZY_MULTIPLIER = 500;

@@ -50,10 +50,19 @@ export function saveUserState(telegramId: number, gameState: SavableGameState): 
 
     const url = `${API_BASE_URL}/users/${telegramId}/state`;
     const data = JSON.stringify({ gameState });
-    const blob = new Blob([data], { type: 'application/json; charset=UTF-8' });
 
-    navigator.sendBeacon(url, blob);
+    fetch(url, {
+        method: 'POST',
+        body: data,
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        keepalive: true
+    }).catch(error => {
+        console.error('Failed to save game state:', error);
+    });
 }
+
 
 export async function fetchLeaderboard(): Promise<any> {
     return fetchApi(`/leaderboard`);

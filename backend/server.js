@@ -1,26 +1,43 @@
+require('dotenv').config();
+
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 const cors = require('cors');
-const { open } = require('sqlite');
+
+const isProduction = process.env.NODE_ENV === 'production';
+
+const poolConfig = {
+    connectionString: process.env.DATABASE_URL,
+};
+
+if (isProduction) {
+    poolConfig.ssl = {
+        rejectUnauthorized: false
+    };
+}
+
+const pool = new Pool(poolConfig);
 
 async function setupDatabase() {
-    const db = await open({
-        filename: './gamedata.db',
-        driver: sqlite3.Database
-    });
-    await db.run(`CREATE TABLE IF NOT EXISTS users (
-                                                       telegram_id TEXT PRIMARY KEY,
-                                                       username TEXT,
-                                                       referrer_id TEXT,
-                                                       game_state TEXT,
-                                                       wallet_address TEXT
-                  )`);
-    console.log('Connected to the game database.');
-    return db;
+    const client = await pool.connect();
+    try {
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                telegram_id TEXT PRIMARY KEY,
+                username TEXT,
+                referrer_id TEXT,
+                game_state JSONB,
+                wallet_address TEXT
+            )
+        `);
+        console.log('Connected to the game database (PostgreSQL).');
+    } finally {
+        client.release();
+    }
 }
 
 async function main() {
-    const db = await setupDatabase();
+    await setupDatabase();
     const app = express();
     const PORT = 3001;
 
@@ -32,11 +49,12 @@ async function main() {
 
     app.get('/api/leaderboard', async (req, res) => {
         try {
-            const users = await db.all("SELECT username, game_state FROM users");
+            const result = await pool.query("SELECT username, game_state FROM users");
+            const users = result.rows;
             const leaderboardData = users.map(user => {
                 try {
                     if (!user.game_state) return null;
-                    const state = JSON.parse(user.game_state);
+                    const state = user.game_state; // game_state уже является JSONB
                     return {
                         username: user.username || 'Anonymous',
                         prestigePoints: state.prestigePoints || 0,
@@ -61,13 +79,16 @@ async function main() {
         }
         try {
             const initialGameState = {};
-            await db.run( `INSERT OR IGNORE INTO users (telegram_id, username, referrer_id, game_state) VALUES (?, ?, ?, ?)`, [telegram_id, username, referrer_id, JSON.stringify(initialGameState)] );
+            await pool.query(
+                `INSERT INTO users (telegram_id, username, referrer_id, game_state) VALUES ($1, $2, $3, $4) ON CONFLICT (telegram_id) DO NOTHING`,
+                [telegram_id, username, referrer_id, initialGameState]
+            );
             console.log(`[LOG] User registered or already exists: ${telegram_id}.`);
             if (referrer_id && referrer_id !== telegram_id) {
-                const referrerRow = await db.get(`SELECT * FROM users WHERE telegram_id = ?`, [referrer_id]);
+                const referrerResult = await pool.query(`SELECT * FROM users WHERE telegram_id = $1`, [referrer_id]);
+                const referrerRow = referrerResult.rows[0];
                 if (referrerRow?.game_state) {
-                    let referrerState;
-                    try { referrerState = JSON.parse(referrerRow.game_state); } catch (e) { referrerState = {}; }
+                    let referrerState = referrerRow.game_state;
                     if (!referrerState.referralSystem) { referrerState.referralSystem = { userId: referrer_id, referredCount: 0, earnings: 0, }; }
                     referrerState.referralSystem.referredCount = (referrerState.referralSystem.referredCount || 0) + 1;
                     const prestigeMultiplier = 1 + ((referrerState.prestigePoints || 0) * 0.02);
@@ -77,7 +98,7 @@ async function main() {
                     const reward = totalVps * 3600;
                     referrerState.referralSystem.earnings = (referrerState.referralSystem.earnings || 0) + reward;
                     referrerState.totalViews = (referrerState.totalViews || 0) + reward;
-                    await db.run(`UPDATE users SET game_state = ? WHERE telegram_id = ?`, [JSON.stringify(referrerState), referrer_id]);
+                    await pool.query(`UPDATE users SET game_state = $1 WHERE telegram_id = $2`, [referrerState, referrer_id]);
                     console.log(`[LOG] Referrer ${referrer_id} was rewarded for inviting ${telegram_id}.`);
                 }
             }
@@ -91,12 +112,10 @@ async function main() {
     app.get('/api/users/:telegram_id/state', async (req, res) => {
         const { telegram_id } = req.params;
         try {
-            const row = await db.get("SELECT game_state, wallet_address FROM users WHERE telegram_id = ?", [telegram_id]);
+            const result = await pool.query("SELECT game_state, wallet_address FROM users WHERE telegram_id = $1", [telegram_id]);
+            const row = result.rows[0];
             if (row) {
-                let gameState = {};
-                if (row.game_state) {
-                    try { gameState = JSON.parse(row.game_state); } catch (e) {}
-                }
+                let gameState = row.game_state || {};
                 gameState.walletAddress = row.wallet_address;
                 gameState.isWalletConnected = !!row.wallet_address;
                 res.json(gameState);
@@ -115,15 +134,16 @@ async function main() {
             return res.status(400).json({ error: 'gameState is required' });
         }
         try {
-            const existingRow = await db.get("SELECT game_state FROM users WHERE telegram_id = ?", [telegram_id]);
+            const existingResult = await pool.query("SELECT game_state FROM users WHERE telegram_id = $1", [telegram_id]);
+            const existingRow = existingResult.rows[0];
             let existingState = {};
             if (existingRow && existingRow.game_state) {
-                try { existingState = JSON.parse(existingRow.game_state); } catch (e) {}
+                existingState = existingRow.game_state;
             }
             const mergedState = { ...existingState, ...clientState, referralSystem: existingState.referralSystem || clientState.referralSystem, };
-            const result = await db.run(
-                `UPDATE users SET game_state = ?, wallet_address = ? WHERE telegram_id = ?`,
-                [JSON.stringify(mergedState), clientState.walletAddress, telegram_id]
+            await pool.query(
+                `UPDATE users SET game_state = $1, wallet_address = $2 WHERE telegram_id = $3`,
+                [mergedState, clientState.walletAddress, telegram_id]
             );
             res.json({ message: 'Game state saved successfully' });
         } catch (err) {
@@ -135,8 +155,8 @@ async function main() {
     app.get('/api/users/:telegram_id/referrals', async (req, res) => {
         const { telegram_id } = req.params;
         try {
-            const rows = await db.all("SELECT telegram_id, username FROM users WHERE referrer_id = ?", [telegram_id]);
-            res.json(rows);
+            const result = await pool.query("SELECT telegram_id, username FROM users WHERE referrer_id = $1", [telegram_id]);
+            res.json(result.rows);
         } catch (err) {
             res.status(500).json({ error: err.message });
         }
