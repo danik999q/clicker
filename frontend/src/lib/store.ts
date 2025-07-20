@@ -257,8 +257,20 @@ function createGameStore() {
             const costForNextLevel = Math.floor(nodeDef.cost * Math.pow(constants.UPGRADE_NODE_COST_RATIO, currentLevel));
 
             if (arePrerequisitesMet && state.totalViews >= costForNextLevel) {
-                state.totalViews -= costForNextLevel;
-                nodeState.level += 1;
+                return {
+                    ...state,
+                    totalViews: state.totalViews - costForNextLevel,
+                    upgradeTrees: {
+                        ...state.upgradeTrees,
+                        [treeId]: {
+                            ...state.upgradeTrees[treeId],
+                            [nodeId]: {
+                                ...state.upgradeTrees[treeId][nodeId],
+                                level: currentLevel + 1
+                            }
+                        }
+                    }
+                };
             }
 
             return state;

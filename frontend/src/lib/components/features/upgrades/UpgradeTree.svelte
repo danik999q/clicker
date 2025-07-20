@@ -6,7 +6,7 @@
     import type { UpgradeDefinition } from '$lib/types';
 
     let activeTree: 'passive' | 'click' = 'passive';
-    let selectedNode: { nodeDef: UpgradeDefinition, treeId: string } | null = null;
+    let selectedNode: { nodeDef: UpgradeDefinition; treeId: string } | null = null;
 </script>
 
 {#if selectedNode}
@@ -14,16 +14,24 @@
             node={selectedNode.nodeDef}
             treeId={selectedNode.treeId}
             currentLevel={$gameStore.upgradeTrees[selectedNode.treeId]?.[selectedNode.nodeDef.id]?.level ?? 0}
-            on:close={() => selectedNode = null}
+            on:close={() => (selectedNode = null)}
     />
 {/if}
 
 <div class="trees-container">
     <div class="tabs">
-        <button class="tab-button" class:active={activeTree === 'passive'} on:click={() => (activeTree = 'passive')}>
+        <button
+                class="tab-button"
+                class:active={activeTree === 'passive'}
+                on:click={() => (activeTree = 'passive')}
+        >
             Пассивный доход
         </button>
-        <button class="tab-button" class:active={activeTree === 'click'} on:click={() => (activeTree = 'click')}>
+        <button
+                class="tab-button"
+                class:active={activeTree === 'click'}
+                on:click={() => (activeTree = 'click')}
+        >
             Сила клика
         </button>
     </div>
@@ -31,22 +39,33 @@
     <div class="tree-content">
         {#if activeTree === 'passive'}
             <div class="grid-layout passive-tree">
-                <UpgradeNode on:click={() => selectedNode = { nodeDef: passiveIncomeTree, treeId: passiveIncomeTree.id }} node={passiveIncomeTree} treeId={passiveIncomeTree.id} gridPosition="1 / 2" />
-                <UpgradeNode on:click={() => selectedNode = { nodeDef: passiveIncomeTree.children[0], treeId: passiveIncomeTree.id }} node={passiveIncomeTree.children[0]} treeId={passiveIncomeTree.id} gridPosition="2 / 1" />
-                <UpgradeNode on:click={() => selectedNode = { nodeDef: passiveIncomeTree.children[1], treeId: passiveIncomeTree.id }} node={passiveIncomeTree.children[1]} treeId={passiveIncomeTree.id} gridPosition="2 / 3" />
-                {#if passiveIncomeTree.children[0].children[0]}
-                    <UpgradeNode on:click={() => selectedNode = { nodeDef: passiveIncomeTree.children[0].children[0], treeId: passiveIncomeTree.id }} node={passiveIncomeTree.children[0].children[0]} treeId={passiveIncomeTree.id} gridPosition="3 / 1" />
-                {/if}
+                <UpgradeNode
+                        on:openModal={() => (selectedNode = { nodeDef: passiveIncomeTree, treeId: passiveIncomeTree.id })}
+                        node={passiveIncomeTree}
+                        treeId={passiveIncomeTree.id}
+                        gridPosition="1 / 2"
+                />
+                <UpgradeNode
+                        on:openModal={() => (selectedNode = { nodeDef: passiveIncomeTree.children[0], treeId: passiveIncomeTree.id })}
+                        node={passiveIncomeTree.children[0]}
+                        treeId={passiveIncomeTree.id}
+                        gridPosition="2 / 1"
+                />
+                <UpgradeNode
+                        on:openModal={() => (selectedNode = { nodeDef: passiveIncomeTree.children[1], treeId: passiveIncomeTree.id })}
+                        node={passiveIncomeTree.children[1]}
+                        treeId={passiveIncomeTree.id}
+                        gridPosition="2 / 3"
+                />
             </div>
         {:else if activeTree === 'click'}
             <div class="grid-layout click-tree">
-                <UpgradeNode on:click={() => selectedNode = { nodeDef: clickPowerTree, treeId: clickPowerTree.id }} node={clickPowerTree} treeId={clickPowerTree.id} gridPosition="1 / 1" />
-                {#if clickPowerTree.children[0]}
-                    <UpgradeNode on:click={() => selectedNode = { nodeDef: clickPowerTree.children[0], treeId: clickPowerTree.id }} node={clickPowerTree.children[0]} treeId={clickPowerTree.id} gridPosition="2 / 1" />
-                    {#if clickPowerTree.children[0].children[0]}
-                        <UpgradeNode on:click={() => selectedNode = { nodeDef: clickPowerTree.children[0].children[0], treeId: clickPowerTree.id }} node={clickPowerTree.children[0].children[0]} treeId={clickPowerTree.id} gridPosition="3 / 1" />
-                    {/if}
-                {/if}
+                <UpgradeNode
+                        on:openModal={() => (selectedNode = { nodeDef: clickPowerTree, treeId: clickPowerTree.id })}
+                        node={clickPowerTree}
+                        treeId={clickPowerTree.id}
+                        gridPosition="1 / 1"
+                />
             </div>
         {/if}
     </div>
