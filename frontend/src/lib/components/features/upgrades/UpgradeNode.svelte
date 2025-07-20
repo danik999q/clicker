@@ -6,7 +6,7 @@
 
     export let node: UpgradeDefinition;
     export let treeId: string;
-    export let gridPosition: string;
+    export let gridPosition: string = '';
 
     const dispatch = createEventDispatcher();
 
@@ -21,15 +21,22 @@
         (prereqId) => ($gameStore.upgradeTrees[treeId]?.[prereqId]?.level || 0) > 0
     );
     $: canPurchase = arePrerequisitesMet && canAfford && !isMaxLevel;
+
+    let style = gridPosition ? `grid-area: ${gridPosition};` : '';
 </script>
 
-<div class="node-wrapper" style="grid-area: {gridPosition};">
+<div class="node-wrapper" {style}>
     <div class="node" class:maxed={isMaxLevel} class:available={canPurchase} class:locked={!arePrerequisitesMet}>
         <button on:click={() => dispatch('openModal')} title={node.description}>
-            <div class="icon-placeholder">
-            </div>
+            <div class="icon-placeholder" />
             <span class="name">{node.name}</span>
-            <span class="level-display">{level} / {node.maxLevel}</span>
+            <span class="level-display" class:maxed={isMaxLevel}>
+				{#if isMaxLevel}
+					MAX
+				{:else}
+					{level} / {node.maxLevel}
+				{/if}
+			</span>
         </button>
     </div>
 </div>
@@ -40,6 +47,7 @@
         display: flex;
         justify-content: center;
         align-items: center;
+        z-index: 1;
     }
     .node button {
         display: flex;
@@ -75,6 +83,9 @@
         font-weight: bold;
         color: var(--primary-accent);
         margin-top: 4px;
+    }
+    .level-display.maxed {
+        color: var(--secondary-accent);
     }
     .node.available button {
         border-color: var(--primary-accent);

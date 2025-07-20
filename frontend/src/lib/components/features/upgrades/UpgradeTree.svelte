@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { afterUpdate, onMount } from 'svelte';
     import { passiveIncomeTree, clickPowerTree } from '$lib/constants';
     import { gameStore } from '$lib/store';
     import UpgradeNode from './UpgradeNode.svelte';
@@ -7,6 +8,63 @@
 
     let activeTree: 'passive' | 'click' = 'passive';
     let selectedNode: { nodeDef: UpgradeDefinition; treeId: string } | null = null;
+
+    let nodeElements: { [key: string]: HTMLElement } = {};
+    let lines: { id: string; d: string }[] = [];
+    let containerElement: HTMLElement;
+
+    const passiveTreeConnections = [
+        { from: passiveIncomeTree.id, to: passiveIncomeTree.children[0].id },
+        { from: passiveIncomeTree.id, to: passiveIncomeTree.children[1].id }
+    ];
+
+    function updateLines() {
+        if (activeTree !== 'passive' || !containerElement) return;
+
+        const newLines = [];
+        const containerRect = containerElement.getBoundingClientRect();
+
+        for (const connection of passiveTreeConnections) {
+            const fromEl = nodeElements[connection.from];
+            const toEl = nodeElements[connection.to];
+
+            if (fromEl && toEl) {
+                const fromRect = fromEl.getBoundingClientRect();
+                const toRect = toEl.getBoundingClientRect();
+
+                const from = {
+                    x: fromRect.left - containerRect.left + fromRect.width / 2,
+                    y: fromRect.top - containerRect.top + fromRect.height / 2
+                };
+
+                const to = {
+                    x: toRect.left - containerRect.left + toRect.width / 2,
+                    y: toRect.top - containerRect.top + toRect.height / 2
+                };
+
+                const controlPoint1 = { x: from.x, y: from.y + 60 };
+                const controlPoint2 = { x: to.x, y: to.y - 60 };
+
+                const pathD = `M ${from.x} ${from.y} C ${controlPoint1.x} ${controlPoint1.y}, ${controlPoint2.x} ${controlPoint2.y}, ${to.x} ${to.y}`;
+
+                newLines.push({ id: `${connection.from}-${connection.to}`, d: pathD });
+            }
+        }
+        lines = newLines;
+    }
+
+    onMount(() => {
+        setTimeout(updateLines, 50);
+    });
+
+    afterUpdate(() => {
+        setTimeout(updateLines, 50);
+    });
+
+    $: if (activeTree) {
+        lines = [];
+        setTimeout(updateLines, 50);
+    }
 </script>
 
 {#if selectedNode}
@@ -20,43 +78,44 @@
 
 <div class="trees-container">
     <div class="tabs">
-        <button
-                class="tab-button"
-                class:active={activeTree === 'passive'}
-                on:click={() => (activeTree = 'passive')}
-        >
+        <button class="tab-button" class:active={activeTree === 'passive'} on:click={() => (activeTree = 'passive')}>
             Пассивный доход
         </button>
-        <button
-                class="tab-button"
-                class:active={activeTree === 'click'}
-                on:click={() => (activeTree = 'click')}
-        >
+        <button class="tab-button" class:active={activeTree === 'click'} on:click={() => (activeTree = 'click')}>
             Сила клика
         </button>
     </div>
 
-    <div class="tree-content">
+    <div class="tree-content" bind:this={containerElement}>
         {#if activeTree === 'passive'}
             <div class="grid-layout passive-tree">
-                <UpgradeNode
-                        on:openModal={() => (selectedNode = { nodeDef: passiveIncomeTree, treeId: passiveIncomeTree.id })}
-                        node={passiveIncomeTree}
-                        treeId={passiveIncomeTree.id}
-                        gridPosition="1 / 2"
-                />
-                <UpgradeNode
-                        on:openModal={() => (selectedNode = { nodeDef: passiveIncomeTree.children[0], treeId: passiveIncomeTree.id })}
-                        node={passiveIncomeTree.children[0]}
-                        treeId={passiveIncomeTree.id}
-                        gridPosition="2 / 1"
-                />
-                <UpgradeNode
-                        on:openModal={() => (selectedNode = { nodeDef: passiveIncomeTree.children[1], treeId: passiveIncomeTree.id })}
-                        node={passiveIncomeTree.children[1]}
-                        treeId={passiveIncomeTree.id}
-                        gridPosition="2 / 3"
-                />
+                <svg class="lines-svg">
+                    {#each lines as line (line.id)}
+                        <path class="line" d={line.d} />
+                    {/each}
+                </svg>
+
+                <div class="node-positioner" style="grid-area: 1 / 2;" bind:this={nodeElements[passiveIncomeTree.id]}>
+                    <UpgradeNode
+                            on:openModal={() => (selectedNode = { nodeDef: passiveIncomeTree, treeId: passiveIncomeTree.id })}
+                            node={passiveIncomeTree}
+                            treeId={passiveIncomeTree.id}
+                    />
+                </div>
+                <div class="node-positioner" style="grid-area: 2 / 1;" bind:this={nodeElements[passiveIncomeTree.children[0].id]}>
+                    <UpgradeNode
+                            on:openModal={() => (selectedNode = { nodeDef: passiveIncomeTree.children[0], treeId: passiveIncomeTree.id })}
+                            node={passiveIncomeTree.children[0]}
+                            treeId={passiveIncomeTree.id}
+                    />
+                </div>
+                <div class="node-positioner" style="grid-area: 2 / 3;" bind:this={nodeElements[passiveIncomeTree.children[1].id]}>
+                    <UpgradeNode
+                            on:openModal={() => (selectedNode = { nodeDef: passiveIncomeTree.children[1], treeId: passiveIncomeTree.id })}
+                            node={passiveIncomeTree.children[1]}
+                            treeId={passiveIncomeTree.id}
+                    />
+                </div>
             </div>
         {:else if activeTree === 'click'}
             <div class="grid-layout click-tree">
@@ -100,6 +159,7 @@
         border-bottom: 2px solid var(--primary-accent);
     }
     .tree-content {
+        position: relative;
         padding: 40px 20px;
         border: 1px solid var(--border-color);
         border-radius: 12px;
@@ -111,49 +171,35 @@
         position: relative;
         align-items: center;
         justify-items: center;
+        gap: 20px 0;
     }
     .passive-tree {
         grid-template-columns: 1fr 1fr 1fr;
-        grid-template-rows: repeat(3, 140px);
+        grid-template-rows: repeat(2, 140px);
     }
     .click-tree {
         grid-template-columns: 1fr;
         grid-template-rows: repeat(3, 140px);
     }
-    .grid-layout :global(.node-wrapper)::before,
-    .grid-layout :global(.node-wrapper)::after {
-        content: '';
+    .lines-svg {
         position: absolute;
-        background-color: var(--secondary-accent);
-        opacity: 0.5;
-        z-index: -1;
-    }
-    .passive-tree :global(.node-wrapper[style="grid-area: 1 / 2;"])::after {
-        width: 2px;
-        height: 70px;
-        top: 100%;
-        left: 50%;
-        transform: translate(-50%, -20px);
-    }
-    .passive-tree :global(.node-wrapper[style="grid-area: 2 / 1;"])::before,
-    .passive-tree :global(.node-wrapper[style="grid-area: 2 / 3;"])::before {
-        width: 2px;
-        height: 70px;
-        bottom: 100%;
-        left: 50%;
-        transform: translate(-50%, 20px);
-    }
-    .passive-tree :global(.node-wrapper[style="grid-area: 2 / 1;"])::after {
+        top: 0;
+        left: 0;
         width: 100%;
-        height: 2px;
-        top: -20%;
-        left: 50%;
-    }
-    .click-tree :global(.node-wrapper:not(:last-child))::after {
-        width: 2px;
         height: 100%;
-        top: 50%;
-        left: 50%;
-        transform: translateX(-50%);
+        z-index: 0;
+        pointer-events: none;
+    }
+    .line {
+        fill: none;
+        stroke: var(--secondary-accent);
+        stroke-width: 2.5px;
+        opacity: 0.4;
+        stroke-linecap: round;
+    }
+    .node-positioner {
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 </style>

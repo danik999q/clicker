@@ -37,9 +37,9 @@ function createGameStore() {
         walletAddress: null,
         isWalletConnected: false,
         memes: [
-            { id: 'crocodilo', name: 'Crocodilo Bombordiro', level: 1, isUnlocked: true, unlockCost: 0, baseViews: 1, passiveViews: 0.5, upgradeCost: 15, imageUrl: '/images/crocodilo.jpeg' },
-            { id: 'sahur', name: 'Tung Tung Sahur', level: 1, isUnlocked: false, unlockCost: 400, baseViews: 8, passiveViews: 2, upgradeCost: 200, imageUrl: '/images/sahur.jpeg' },
-            { id: 'skibidi', name: 'Skibidi Toilet', level: 1, isUnlocked: false, unlockCost: 4500, baseViews: 40, passiveViews: 10, upgradeCost: 2500, imageUrl: '/images/skibidi.jpeg' }
+            { id: 'crocodilo', name: 'Crocodilo Bombordiro', level: 1, isUnlocked: true, unlockCost: 0, baseViews: 1, passiveViews: 0.2, upgradeCost: 20, imageUrl: '/images/crocodilo.jpeg' },
+            { id: 'sahur', name: 'Tung Tung Sahur', level: 1, isUnlocked: false, unlockCost: 1000, baseViews: 10, passiveViews: 1.5, upgradeCost: 250, imageUrl: '/images/sahur.jpeg' },
+            { id: 'skibidi', name: 'Skibidi Toilet', level: 1, isUnlocked: false, unlockCost: 12000, baseViews: 50, passiveViews: 8, upgradeCost: 3000, imageUrl: '/images/skibidi.jpeg' }
         ],
         upgradeTrees: initializeUpgradeTrees(),
         metaUpgrades: constants.META_UPGRADE_DEFINITIONS.map(def => ({ id: def.id, isPurchased: false })),

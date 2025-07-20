@@ -1,7 +1,7 @@
 import type { AchievementDefinition, DailyQuestDefinition, MetaUpgradeDefinition, UpgradeDefinition } from './types';
 
-export const UPGRADE_COST_RATIO = 1.3;
-export const UPGRADE_NODE_COST_RATIO = 2.5;
+export const UPGRADE_COST_RATIO = 1.12;
+export const UPGRADE_NODE_COST_RATIO = 1.8;
 export const SAVE_INTERVAL_MS = 5000;
 export const FLOATING_BONUS_INTERVAL_MS = 30000;
 export const FLOATING_BONUS_LIFETIME_S = 10;
@@ -9,7 +9,7 @@ export const CLICK_FRENZY_MULTIPLIER = 500;
 export const INCOME_MULTIPLIER_VALUE = 7;
 export const INCOME_MULTIPLIER_DURATION_S = 60;
 export const CLICK_FRENZY_DURATION_S = 15;
-export const PRESTIGE_THRESHOLD = 1e12;
+export const PRESTIGE_THRESHOLD = 1e10;
 export const MAX_OFFLINE_EARNINGS_S = 7 * 24 * 60 * 60;
 
 export const passiveIncomeTree: UpgradeDefinition = {

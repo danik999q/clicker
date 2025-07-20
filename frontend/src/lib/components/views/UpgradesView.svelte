@@ -15,7 +15,7 @@
         }
     }
 </script>
-
+//наша игра
 <div class="view-container">
     <Header />
     <div class="content-area">
