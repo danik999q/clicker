@@ -20,11 +20,16 @@
         {:else}
             {#each $gameStore.leaderboard.data as player, index (player.username)}
                 <div class="player-card">
-                    <span class="rank">#{index + 1}</span>
-                    <span class="username">{player.username}</span>
-                    <span class="score">
-                        {player.prestigePoints} 🧠 / {formatNumber(player.totalViews)}
-                    </span>
+                    <div class="user-info">
+                        <div class="rank">#{index + 1}</div>
+                        <div class="username">{player.username}</div>
+                    </div>
+                    <div class="user-score">
+                        <div class="score-text">SCORE: </div>
+                        <div class="score">
+                            {player.prestigePoints} 🧠 / {formatNumber(player.totalViews)}
+                        </div>
+                    </div>
                 </div>
             {/each}
         {/if}
@@ -34,7 +39,6 @@
 <style>
     .view-container {
         width: 100%;
-        padding: 1.5rem;
         box-sizing: border-box;
         text-align: center;
     }
@@ -49,20 +53,27 @@
         flex-direction: column;
         gap: 0.75rem;
     }
-    .player-card {
+    .user-info {
+        padding-bottom: 5px;
         display: flex;
-        align-items: center;
+        flex-direction: row;
+        column-gap: 10px;
+        border-bottom: 1px solid rgba(140, 140, 140, 0.493);
+        font-size: 1.2rem;
+    }
+    .player-card {
+        max-width: 100%;
+        display: flex;
+        flex-direction: column;
+        row-gap: 5px;
         background-color: rgba(17, 24, 39, 0.6);
         border: 1px solid var(--border-color);
         border-radius: 8px;
         padding: 1rem;
-        gap: 1rem;
     }
     .rank {
-        font-weight: 700;
-        font-size: 1.1rem;
+        font-weight: 600;
         color: var(--text-secondary);
-        width: 2.5rem;
         text-align: left;
     }
     .username {
@@ -71,7 +82,15 @@
         flex-grow: 1;
         text-align: left;
     }
+    .user-score {
+        font-size: 1.1rem;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
     .score {
+        padding: 3px;
         font-weight: 700;
         color: var(--primary-accent);
         white-space: nowrap;

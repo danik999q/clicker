@@ -1,9 +1,10 @@
 import { writable } from 'svelte/store';
 import { get } from 'svelte/store';
+import type {Referral} from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-export const referrals = writable([]);
+export const referrals = writable<Referral[]>([]);
 export const isLoadingReferrals = writable(true);
 const hasLoaded = writable(false);
 

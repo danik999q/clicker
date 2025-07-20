@@ -50,7 +50,7 @@ export interface OfflineReport {
 
 export interface UpgradeTreeState {
     [nodeId: string]: {
-        isPurchased: boolean;
+        level: number;
     };
 }
 
@@ -58,6 +58,7 @@ export interface UpgradeDefinition {
     id: string;
     name: string;
     description: string;
+    maxLevel: number;
     cost: number;
     prerequisites: string[];
     effect: {
@@ -137,4 +138,17 @@ export interface GameState {
         quests: DailyQuest[];
         progress: DailyProgress;
     };
+    leaderboard: {
+        isLoading: boolean;
+        data: LeaderboardEntry[];
+    };
+}
+export interface LeaderboardEntry {
+    username: string;
+    prestigePoints: number;
+    totalViews: number;
+}
+export interface Referral {
+    telegram_id: string;
+    username: string;
 }

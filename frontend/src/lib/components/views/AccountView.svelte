@@ -68,7 +68,7 @@
         border: 1px solid #374151;
         border-radius: 12px;
         padding: 1.5rem;
-        margin-top: 1.5rem;
+        margin: 1.5rem;
         text-align: center;
     }
     .label {

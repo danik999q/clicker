@@ -179,6 +179,7 @@
         font-weight: 700;
         cursor: pointer;
         white-space: nowrap;
+        margin-left: 10px;
     }
     .purchase-button:disabled {
         opacity: 0.4;

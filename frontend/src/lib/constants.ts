@@ -1,6 +1,7 @@
 import type { AchievementDefinition, DailyQuestDefinition, MetaUpgradeDefinition, UpgradeDefinition } from './types';
 
-export const UPGRADE_COST_RATIO = 1.6;
+export const UPGRADE_COST_RATIO = 1.3;
+export const UPGRADE_NODE_COST_RATIO = 2.5;
 export const SAVE_INTERVAL_MS = 5000;
 export const FLOATING_BONUS_INTERVAL_MS = 30000;
 export const FLOATING_BONUS_LIFETIME_S = 10;
@@ -15,6 +16,7 @@ export const passiveIncomeTree: UpgradeDefinition = {
     id: 'passive_root',
     name: 'Основы пассивного дохода',
     description: 'Начать путь к автоматизированному заработку просмотров.',
+    maxLevel: 3,
     cost: 10000,
     prerequisites: [],
     effect: { type: 'PASSIVE_MULTIPLIER', value: 0.10 },
@@ -23,6 +25,7 @@ export const passiveIncomeTree: UpgradeDefinition = {
             id: 'passive_boost_1',
             name: 'Вечный двигатель мемов',
             description: 'Пассивный доход от всех мемов +15%.',
+            maxLevel: 3,
             cost: 25000,
             prerequisites: ['passive_root'],
             effect: { type: 'PASSIVE_MULTIPLIER', value: 0.15 },
@@ -32,6 +35,7 @@ export const passiveIncomeTree: UpgradeDefinition = {
             id: 'cost_reduction_1',
             name: 'Оптовые закупки',
             description: 'Снижает стоимость улучшения мемов на 5%.',
+            maxLevel: 3,
             cost: 50000,
             prerequisites: ['passive_root'],
             effect: { type: 'UPGRADE_COST_REDUCTION', value: 0.05 },
@@ -44,6 +48,7 @@ export const clickPowerTree: UpgradeDefinition = {
     id: 'click_root',
     name: 'Сила первого клика',
     description: 'Увеличить базовую силу клика.',
+    maxLevel: 3,
     cost: 5000,
     prerequisites: [],
     effect: { type: 'CLICK_MULTIPLIER', value: 0.10 },

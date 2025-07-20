@@ -23,7 +23,6 @@
             <button class="tab-button" class:active={activeTab === 'memes'} on:click={() => (activeTab = 'memes')}>Мемы</button>
             <button class="tab-button" class:active={activeTab === 'global'} on:click={() => (activeTab = 'global')}>Улучшения</button>
             <button class="tab-button" class:active={activeTab === 'achievements'} on:click={() => (activeTab = 'achievements')}>Задания</button>
-
             {#if $gameStore.totalViews >= PRESTIGE_THRESHOLD / 10 || $gameStore.prestigePoints > 0}
                 <button class="tab-button prestige" class:active={activeTab === 'prestige'} on:click={() => (activeTab = 'prestige')}>
                     Престиж 🧠
@@ -128,7 +127,7 @@
     .tabs {
         display: flex;
         max-width: 100%;
-        overflow-x: auto;
+        overflow: hidden;
         justify-content: space-between;
         margin-bottom: 1.5rem;
         border-bottom: 1px solid var(--border-color);
@@ -293,6 +292,15 @@
         .achievement-reward {
             max-width: 120px;
             text-align: center;
+        }
+        .tab-button {
+            padding: 0.5rem 0.45rem;
+        }
+        @media(max-width: 360px) {
+            .tab-button {
+                font-size: 0.8rem;
+                padding: 0.5rem, 0.35rem;
+            }
         }
     }
 </style>

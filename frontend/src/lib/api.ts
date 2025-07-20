@@ -54,3 +54,7 @@ export function saveUserState(telegramId: number, gameState: SavableGameState): 
 
     navigator.sendBeacon(url, blob);
 }
+
+export async function fetchLeaderboard(): Promise<any> {
+    return fetchApi(`/leaderboard`);
+}

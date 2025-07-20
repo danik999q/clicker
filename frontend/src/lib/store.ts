@@ -11,7 +11,7 @@ function initializeUpgradeTrees(): GameState['upgradeTrees'] {
     for (const tree of constants.UPGRADE_TREES) {
         const treeState: UpgradeTreeState = {};
         function traverse(node: UpgradeDefinition) {
-            treeState[node.id] = { isPurchased: false };
+            treeState[node.id] = { level: 0 };
             node.children.forEach(traverse);
         }
         traverse(tree);
@@ -53,7 +53,11 @@ function createGameStore() {
             lastReset: new Date().toISOString().split('T')[0],
             quests: [],
             progress: { dailyClicks: 0, dailyViews: 0, dailyLevels: 0, dailyBonuses: 0 }
-        }
+        },
+        leaderboard: {
+            isLoading: true,
+            data: []
+        },
     };
 
     const store: Writable<GameState> = writable(defaultState);
@@ -244,11 +248,17 @@ function createGameStore() {
             if (!nodeDef) return state;
 
             const treeState = state.upgradeTrees[treeId];
-            const arePrerequisitesMet = nodeDef.prerequisites.every(prereqId => treeState[prereqId]?.isPurchased);
+            const nodeState = treeState[nodeId];
+            const currentLevel = nodeState.level || 0;
 
-            if (arePrerequisitesMet && state.totalViews >= nodeDef.cost && !treeState[nodeId]?.isPurchased) {
-                state.totalViews -= nodeDef.cost;
-                treeState[nodeId].isPurchased = true;
+            if (currentLevel >= nodeDef.maxLevel) return state;
+
+            const arePrerequisitesMet = nodeDef.prerequisites.every(prereqId => (treeState[prereqId]?.level || 0) > 0);
+            const costForNextLevel = Math.floor(nodeDef.cost * Math.pow(constants.UPGRADE_NODE_COST_RATIO, currentLevel));
+
+            if (arePrerequisitesMet && state.totalViews >= costForNextLevel) {
+                state.totalViews -= costForNextLevel;
+                nodeState.level += 1;
             }
 
             return state;
@@ -317,7 +327,28 @@ function createGameStore() {
             }
             return state;
         }),
+        fetchLeaderboard: async () => {
+            update(state => {
+                state.leaderboard.isLoading = true;
+                return state;
+            });
+            try {
+                const data = await api.fetchLeaderboard();
+                update(state => {
+                    state.leaderboard.data = data || [];
+                    state.leaderboard.isLoading = false;
+                    return state;
+                });
+            } catch (error) {
+                console.error("Failed to fetch leaderboard:", error);
+                update(state => {
+                    state.leaderboard.isLoading = false;
+                    return state;
+                });
+            }
+        },
     };
+
 }
 
 export const gameStore = createGameStore();

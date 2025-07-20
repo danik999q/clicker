@@ -8,10 +8,11 @@ function getBonusFromTree(
 ): number {
     let bonus = 0;
     const nodeState = treeState[node.id];
+    const currentLevel = nodeState?.level || 0;
 
-    if (nodeState?.isPurchased) {
+    if (currentLevel > 0) {
         if (node.effect.type === type) {
-            bonus += node.effect.value;
+            bonus += node.effect.value * currentLevel;
         }
         for (const child of node.children) {
             bonus += getBonusFromTree(child, treeState, type);
