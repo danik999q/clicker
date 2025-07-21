@@ -6,6 +6,9 @@
     import UpgradeTree from '../features/upgrades/UpgradeTree.svelte';
     import Header from '../ui/Header.svelte';
     import PrestigeView from './PrestigeView.svelte';
+    import { calculatePassiveIncome } from '$lib/gameLogic';
+    $: passiveIncome = calculatePassiveIncome($gameStore);
+    
 
     let activeTab = 'memes';
 
@@ -15,9 +18,10 @@
         }
     }
 </script>
-//наша игра
+
 <div class="view-container">
-    <Header />
+    <!-- <Header /> -->
+    <div class="total-views">🎥 {formatNumber($gameStore.totalViews)}</div>
     <div class="content-area">
         <div class="tabs">
             <button class="tab-button" class:active={activeTab === 'memes'} on:click={() => (activeTab = 'memes')}>Мемы</button>
@@ -303,4 +307,19 @@
             }
         }
     }
+    
+    .total-views {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        width: fit-content;
+        font-size: 0.8rem;
+        background-color: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: 15px;
+        padding: 0.5rem 0.5rem;
+        margin: 1.5rem;
+    }
+    
 </style>
