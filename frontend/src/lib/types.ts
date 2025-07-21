@@ -156,10 +156,19 @@ export interface Referral {
 export interface ClanMember {
     telegram_id: string;
     username: string;
+    totalViews: number;
+}
+
+export interface ClanLeaderboardEntry {
+    id: number;
+    name: string;
+    memberCount: number;
+    totalViews: number;
 }
 
 export interface Clan {
     id: number;
     name: string;
     members: ClanMember[];
+    totalViews: number;
 }

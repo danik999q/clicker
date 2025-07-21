@@ -33,107 +33,69 @@
             <div class="container">
                 <div class="mid_map">
                     <UpgradeNode
-                                on:openModal={() => (selectedNode = { nodeDef: passiveIncomeTree, treeId: passiveIncomeTree.id })}
-                                node={passiveIncomeTree}
-                                treeId={passiveIncomeTree.id}
-                                gridPosition="1 / 2"
-                        />
-                    <div class="palka"></div>
-                    <div class="brevno"></div>
-                </div>
-                <div class="two_map">
-                    <div class="block_palka">
-                        <div class="palka"></div>
-                        <UpgradeNode
-                                on:openModal={() => (selectedNode = { nodeDef: passiveIncomeTree, treeId: passiveIncomeTree.id })}
-                                node={passiveIncomeTree}
-                                treeId={passiveIncomeTree.id}
-                                gridPosition="1 / 2"
-                        />
-                        <div class="palka"></div>
-                    </div>
-                    <div class="block_palka">
-                        <div class="palka"></div>
-                        <UpgradeNode
-                                on:openModal={() => (selectedNode = { nodeDef: passiveIncomeTree, treeId: passiveIncomeTree.id })}
-                                node={passiveIncomeTree}
-                                treeId={passiveIncomeTree.id}
-                                gridPosition="1 / 2"
-                        />
-                        <div class="palka"></div>
-                    </div>
-                </div>
-                <div class="brevno"></div>
-                <div class="mid_map">
-                    <div class="palka"></div>
-                    <div class="block"></div>
-                    <div class="palka"></div>
-                    <div class="brevno"></div>
-                </div>
-                <div class="two_map">
-                    <div class="block_palka">
-                        <div class="palka"></div>
-                        <div class="block"></div>
-                        <div class="palka"></div>
-                    </div>
-                    <div class="block_palka">
-                        <div class="palka"></div>
-                        <div class="block"></div>
-                        <div class="palka"></div>
-                    </div>
-                </div>
-                <div class="brevno"></div>
-                <div class="mid_map">
-                    <div class="palka"></div>
-                    <div class="block"></div>
-                </div>
-            </div>    
-        {:else if activeTree === 'click'}
-            <div class="grid-layout click-tree">
-                <UpgradeNode
-                    on:openModal={() => (selectedNode = { nodeDef: clickPowerTree, treeId: clickPowerTree.id })}
-                    node={clickPowerTree}
-                    treeId={clickPowerTree.id}
-                    gridPosition="1 / 1"
-                />
-            </div>
-        {/if}
-
-        {#if activeTree === 'passive'}
-            <div class="grid-layout passive-tree">
-                <div style="grid-area: 1 / 2;">
-                    <UpgradeNode
                             on:openModal={() => (selectedNode = { nodeDef: passiveIncomeTree, treeId: passiveIncomeTree.id })}
                             node={passiveIncomeTree}
                             treeId={passiveIncomeTree.id}
+                            gridPosition="1 / 2"
                     />
+                    <div class="palka"></div>
+                    <div class="brevno"></div>
                 </div>
-
-                <div style="grid-area: 2 / 1;">
-                    <UpgradeNode
-                            on:openModal={() => (selectedNode = { nodeDef: passiveIncomeTree.children[0], treeId: passiveIncomeTree.id })}
-                            node={passiveIncomeTree.children[0]}
-                            treeId={passiveIncomeTree.id}
-                    />
+                <div class="two_map">
+                    <div class="block_palka">
+                        <div class="palka"></div>
+                        <UpgradeNode
+                                on:openModal={() => (selectedNode = { nodeDef: passiveIncomeTree, treeId: passiveIncomeTree.id })}
+                                node={passiveIncomeTree}
+                                treeId={passiveIncomeTree.id}
+                                gridPosition="1 / 2"
+                        />
+                        <div class="palka"></div>
+                    </div>
+                    <div class="block_palka">
+                        <div class="palka"></div>
+                        <UpgradeNode
+                                on:openModal={() => (selectedNode = { nodeDef: passiveIncomeTree, treeId: passiveIncomeTree.id })}
+                                node={passiveIncomeTree}
+                                treeId={passiveIncomeTree.id}
+                                gridPosition="1 / 2"
+                        />
+                        <div class="palka"></div>
+                    </div>
                 </div>
-                <div style="grid-area: 2 / 3;">
-                    <UpgradeNode
-                            on:openModal={() => (selectedNode = { nodeDef: passiveIncomeTree.children[1], treeId: passiveIncomeTree.id })}
-                            node={passiveIncomeTree.children[1]}
-                            treeId={passiveIncomeTree.id}
-                    />
+                <div class="brevno"></div>
+                <div class="mid_map">
+                    <div class="palka"></div>
+                    <div class="block"></div>
+                    <div class="palka"></div>
+                    <div class="brevno"></div>
                 </div>
-
+                <div class="two_map">
+                    <div class="block_palka">
+                        <div class="palka"></div>
+                        <div class="block"></div>
+                        <div class="palka"></div>
+                    </div>
+                    <div class="block_palka">
+                        <div class="palka"></div>
+                        <div class="block"></div>
+                        <div class="palka"></div>
+                    </div>
+                </div>
+                <div class="brevno"></div>
+                <div class="mid_map">
+                    <div class="palka"></div>
+                    <div class="block"></div>
+                </div>
             </div>
         {:else if activeTree === 'click'}
             <div class="grid-layout click-tree">
-                <div>
-                    <UpgradeNode
-                            on:openModal={() => (selectedNode = { nodeDef: clickPowerTree, treeId: clickPowerTree.id })}
-                            node={clickPowerTree}
-                            treeId={clickPowerTree.id}
-                    />
-                </div>
+                <UpgradeNode
+                        on:openModal={() => (selectedNode = { nodeDef: clickPowerTree, treeId: clickPowerTree.id })}
+                        node={clickPowerTree}
+                        treeId={clickPowerTree.id}
+                        gridPosition="1 / 1"
+                />
             </div>
         {/if}
     </div>
@@ -247,15 +209,15 @@
     }
 
     .container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto;
-    margin-top: 10px;
-    max-width: 100%;
-    padding: 10px;
-}
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        margin-top: 10px;
+        max-width: 100%;
+        padding: 10px;
+    }
     .palka {
         width: 5px;
         height: 30px;

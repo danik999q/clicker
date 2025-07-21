@@ -86,6 +86,13 @@ export async function fetchUserClan(telegramId: number): Promise<any> {
     return fetchApi(`/users/${telegramId}/clan`);
 }
 
-export async function fetchAllClans(): Promise<any> {
-    return fetchApi(`/clans`);
+export async function fetchClanLeaderboard(): Promise<any> {
+    return fetchApi(`/clans/leaderboard`);
+}
+
+export async function leaveClan(userId: number): Promise<any> {
+    return fetchApi(`/clans/leave`, {
+        method: 'POST',
+        body: JSON.stringify({ user_id: userId })
+    });
 }

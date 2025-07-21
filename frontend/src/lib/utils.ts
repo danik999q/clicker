@@ -1,23 +1,29 @@
-const SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc"];
+const SUFFIXES = ["", "k", "m", "b", "a", "b", "c", "d", "e", "f"];
 
-export function formatNumber(number: number): string {
-    if (number < 0.1 && number > 0) {
-        return number.toFixed(2);
-    }
-    if (number < 1000) {
-        const fixed = number.toFixed(1);
-        return fixed.endsWith('.0') ? number.toFixed(0) : fixed;
+export function formatNumber(number: number | string): string {
+    const num = Number(number);
+
+    if (isNaN(num)) {
+        return '0';
     }
 
-    const tier = Math.floor(Math.log10(number) / 3);
+    if (num < 0.1 && num > 0) {
+        return num.toFixed(2);
+    }
+    if (num < 1000) {
+        const fixed = num.toFixed(1);
+        return fixed.endsWith('.0') ? num.toFixed(0) : fixed;
+    }
+
+    const tier = Math.floor(Math.log10(num) / 3);
 
     if (tier >= SUFFIXES.length) {
-        return number.toExponential(1);
+        return num.toExponential(1);
     }
 
     const suffix = SUFFIXES[tier];
     const scale = Math.pow(10, tier * 3);
-    const scaled = number / scale;
+    const scaled = num / scale;
 
     return scaled.toFixed(2) + suffix;
 }

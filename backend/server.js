@@ -246,10 +246,53 @@ async function main() {
             const clanResult = await pool.query('SELECT id, name FROM clans WHERE id = $1', [user.clan_id]);
             const clan = clanResult.rows[0];
 
-            const membersResult = await pool.query('SELECT telegram_id, username FROM users WHERE clan_id = $1', [user.clan_id]);
+            const membersResult = await pool.query(`
+            SELECT 
+                telegram_id, 
+                username, 
+                (game_state->>'totalViews')::numeric as "totalViews"
+            FROM users 
+            WHERE clan_id = $1 
+            ORDER BY "totalViews" DESC
+        `, [user.clan_id]);
+
             clan.members = membersResult.rows;
+            clan.totalViews = clan.members.reduce((sum, member) => sum + (Number(member.totalViews) || 0), 0);
 
             res.json(clan);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    app.get('/api/clans/leaderboard', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT
+                c.id,
+                c.name,
+                COUNT(u.telegram_id) as "memberCount",
+                COALESCE(SUM((u.game_state->>'totalViews')::numeric), 0) as "totalViews"
+            FROM clans c
+            LEFT JOIN users u ON c.id = u.clan_id
+            GROUP BY c.id, c.name
+            ORDER BY "totalViews" DESC
+            LIMIT 20;
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+    app.post('/api/clans/leave', async (req, res) => {
+        const { user_id } = req.body;
+        if (!user_id) {
+            return res.status(400).json({ error: 'user_id обязателен' });
+        }
+        try {
+            await pool.query('UPDATE users SET clan_id = NULL WHERE telegram_id = $1', [user_id]);
+            res.json({ message: 'Вы покинули клан' });
         } catch (err) {
             res.status(500).json({ error: err.message });
         }

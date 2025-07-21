@@ -354,7 +354,17 @@ function createGameStore() {
             } catch (error) {
                 console.error("Failed to join clan:", error);
             }
-        }
+        },
+        leaveClan: async () => {
+            const state = get(store);
+            if (!state.telegramId) return;
+            try {
+                await api.leaveClan(state.telegramId);
+                update(s => ({ ...s, clan: null }));
+            } catch (error) {
+                console.error("Failed to leave clan:", error);
+            }
+        },
     };
     return storeMethods;
 }
