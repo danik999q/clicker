@@ -3,7 +3,7 @@ import { browser } from '$app/environment';
 import * as api from './api';
 import * as constants from './constants';
 import { calculatePassiveIncome, calculateClickValue, calculateUpgradeCost } from './gameLogic';
-import type { GameState, OfflineReport, UpgradeTreeState } from './types';
+import type { GameState, OfflineReport, UpgradeTreeState, LeaderboardEntry } from './types';
 import type { UpgradeDefinition } from '$lib/types';
 
 function initializeUpgradeTrees(): GameState['upgradeTrees'] {
@@ -33,6 +33,7 @@ function createGameStore() {
         floatingBonus: { isActive: false, x: 50, y: 50, lifetime: 0 },
         prestigePoints: 0,
         telegramId: null,
+        clan: null,
         referralSystem: { userId: null, referredCount: 0, earnings: 0 },
         walletAddress: null,
         isWalletConnected: false,
@@ -56,8 +57,8 @@ function createGameStore() {
         },
         leaderboard: {
             isLoading: true,
-            data: []
-        },
+            data: [] as LeaderboardEntry[]
+        }
     };
 
     const store: Writable<GameState> = writable(defaultState);
@@ -66,10 +67,8 @@ function createGameStore() {
     function saveState() {
         const currentState = get(store);
         if (currentState.isLoading || !currentState.telegramId) return;
-
-        const { isLoading, activeView, offlineReport, floatingBonus, ...savableState } = currentState;
+        const { isLoading, activeView, offlineReport, floatingBonus, leaderboard, ...savableState } = currentState;
         savableState.lastSaveTime = Date.now();
-
         api.saveUserState(currentState.telegramId, savableState);
     }
 
@@ -114,36 +113,30 @@ function createGameStore() {
     }
 
     if (browser) {
-        setInterval(() => {
-            update(state => {
-                if (state.isLoading) return state;
-                const passiveIncome = calculatePassiveIncome(state);
-                if (passiveIncome > 0) {
-                    state.totalViews += passiveIncome;
-                    return checkAchievements(state);
-                }
-                return state;
-            });
-        }, 1000);
+        setInterval(() => update(state => {
+            if (state.isLoading) return state;
+            const passiveIncome = calculatePassiveIncome(state);
+            if (passiveIncome > 0) {
+                state.totalViews += passiveIncome;
+                return checkAchievements(state);
+            }
+            return state;
+        }), 1000);
 
-        setInterval(() => {
-            update(state => {
-                if (!state.floatingBonus.isActive && Math.random() < 0.5) {
-                    state.floatingBonus = { isActive: true, x: Math.random() * 80 + 10, y: Math.random() * 80 + 10, lifetime: constants.FLOATING_BONUS_LIFETIME_S };
-                }
-                return state;
-            });
-        }, constants.FLOATING_BONUS_INTERVAL_MS);
+        setInterval(() => update(state => {
+            if (!state.floatingBonus.isActive && Math.random() < 0.5) {
+                state.floatingBonus = { isActive: true, x: Math.random() * 80 + 10, y: Math.random() * 80 + 10, lifetime: constants.FLOATING_BONUS_LIFETIME_S };
+            }
+            return state;
+        }), constants.FLOATING_BONUS_INTERVAL_MS);
 
-        setInterval(() => {
-            update(state => {
-                if (state.floatingBonus.isActive) {
-                    state.floatingBonus.lifetime--;
-                    if (state.floatingBonus.lifetime <= 0) state.floatingBonus.isActive = false;
-                }
-                return state;
-            });
-        }, 1000);
+        setInterval(() => update(state => {
+            if (state.floatingBonus.isActive) {
+                state.floatingBonus.lifetime--;
+                if (state.floatingBonus.lifetime <= 0) state.floatingBonus.isActive = false;
+            }
+            return state;
+        }), 1000);
 
         setInterval(saveState, constants.SAVE_INTERVAL_MS);
         window.addEventListener('beforeunload', saveState);
@@ -159,15 +152,18 @@ function createGameStore() {
         return Math.floor(5 * Math.log10(views / constants.PRESTIGE_THRESHOLD));
     }
 
-    return {
+    const storeMethods = {
         subscribe,
         set,
         loadStateFromServer: async (telegramId: number) => {
             update(s => ({ ...s, isLoading: true, telegramId }));
             try {
-                const serverState = await api.loadUserState(telegramId);
-                let offlineReport: OfflineReport | null = null;
+                const [serverState, clanInfo] = await Promise.all([
+                    api.loadUserState(telegramId),
+                    api.fetchUserClan(telegramId)
+                ]);
 
+                let offlineReport: OfflineReport | null = null;
                 if (serverState.lastSaveTime) {
                     const timeDiff = Math.floor((Date.now() - serverState.lastSaveTime) / 1000);
                     const effectiveOfflineTime = Math.min(timeDiff, constants.MAX_OFFLINE_EARNINGS_S);
@@ -175,7 +171,6 @@ function createGameStore() {
                         const tempState = { ...defaultState, ...serverState, upgradeTrees: {...initializeUpgradeTrees(), ...(serverState.upgradeTrees || {}) } };
                         const offlineVps = calculatePassiveIncome(tempState);
                         const viewsEarned = Math.floor(offlineVps * effectiveOfflineTime);
-
                         serverState.totalViews = (serverState.totalViews || 0) + viewsEarned;
                         offlineReport = { timeAway: effectiveOfflineTime, viewsEarned };
                     }
@@ -184,13 +179,13 @@ function createGameStore() {
                 const hydratedState: GameState = {
                     ...defaultState,
                     ...serverState,
+                    clan: clanInfo,
                     upgradeTrees: { ...initializeUpgradeTrees(), ...(serverState.upgradeTrees || {}) },
                     telegramId,
                     isLoading: false,
                     offlineReport,
                     isWalletConnected: !!serverState.walletAddress,
                 };
-
                 set(checkAndResetDailies(hydratedState));
             } catch (error: any) {
                 if (error.status === 404) {
@@ -223,7 +218,6 @@ function createGameStore() {
                     meme.upgradeCost = Math.round(meme.upgradeCost * Math.pow(constants.UPGRADE_COST_RATIO, levelsToBuy));
                 }
                 state = updateDailyProgress(state, 'dailyLevels', levelsToBuy);
-                saveState();
             }
             return checkAchievements(state);
         }),
@@ -232,33 +226,25 @@ function createGameStore() {
             if (memeToUnlock && !memeToUnlock.isUnlocked && state.totalViews >= memeToUnlock.unlockCost) {
                 state.totalViews -= memeToUnlock.unlockCost;
                 memeToUnlock.isUnlocked = true;
-                saveState();
             }
             return checkAchievements(state);
         }),
         purchaseUpgrade: (treeId: string, nodeId: string) => update(state => {
             const treeDef = constants.UPGRADE_TREES.find(t => t.id === treeId);
             if (!treeDef) return state;
-
             let nodeDef: UpgradeDefinition | undefined;
             function findNode(current: UpgradeDefinition) {
                 if (current.id === nodeId) nodeDef = current;
                 else current.children.forEach(findNode);
-                saveState();
             }
             findNode(treeDef);
-
             if (!nodeDef) return state;
-
             const treeState = state.upgradeTrees[treeId];
             const nodeState = treeState[nodeId];
-            const currentLevel = nodeState.level || 0;
-
+            const currentLevel = nodeState?.level ?? 0;
             if (currentLevel >= nodeDef.maxLevel) return state;
-
             const arePrerequisitesMet = nodeDef.prerequisites.every(prereqId => (treeState[prereqId]?.level || 0) > 0);
             const costForNextLevel = Math.floor(nodeDef.cost * Math.pow(constants.UPGRADE_NODE_COST_RATIO, currentLevel));
-
             if (arePrerequisitesMet && state.totalViews >= costForNextLevel) {
                 return {
                     ...state,
@@ -275,14 +261,12 @@ function createGameStore() {
                     }
                 };
             }
-
             return state;
         }),
         clickFloatingBonus: () => update(state => {
             if (!state.floatingBonus.isActive) return state;
             state = updateDailyProgress(state, 'dailyBonuses', 1);
             const now = Date.now();
-
             const rand = Math.random();
             if (rand < 0.15) {
                 state.activeBoosts.clickFrenzy = { isActive: true, expiry: now + constants.CLICK_FRENZY_DURATION_S * 1000 };
@@ -291,7 +275,6 @@ function createGameStore() {
             } else {
                 state.totalViews += (calculatePassiveIncome(state) * 60 * 15) + (state.totalViews * 0.05);
             }
-
             state.floatingBonus.isActive = false;
             return state;
         }),
@@ -302,7 +285,6 @@ function createGameStore() {
                 quest.isClaimed = true;
                 if (questDef.reward.type === 'prestigePoints') {
                     state.prestigePoints += questDef.reward.value;
-                    saveState();
                 }
             }
             return state;
@@ -310,13 +292,13 @@ function createGameStore() {
         prestigeReset: () => update(state => {
             const prestigeGain = calculatePrestigeGain(state.totalViews);
             if (prestigeGain <= 0) return state;
-
             const newState: GameState = {
                 ...defaultState,
                 isLoading: false,
                 telegramId: state.telegramId,
                 prestigePoints: state.prestigePoints + prestigeGain,
                 metaUpgrades: state.metaUpgrades,
+                clan: state.clan
             };
             if (state.metaUpgrades.find(m => m.id === 'start_bonus_1' && m.isPurchased)) {
                 newState.totalViews = 10000;
@@ -330,7 +312,6 @@ function createGameStore() {
             if (metaDef && metaState && !metaState.isPurchased && state.prestigePoints >= metaDef.cost) {
                 state.prestigePoints -= metaDef.cost;
                 metaState.isPurchased = true;
-                saveState();
             }
             return state;
         }),
@@ -345,27 +326,37 @@ function createGameStore() {
             return state;
         }),
         fetchLeaderboard: async () => {
-            update(state => {
-                state.leaderboard.isLoading = true;
-                return state;
-            });
+            update(state => ({ ...state, leaderboard: { ...state.leaderboard, isLoading: true } }));
             try {
                 const data = await api.fetchLeaderboard();
-                update(state => {
-                    state.leaderboard.data = data || [];
-                    state.leaderboard.isLoading = false;
-                    return state;
-                });
+                update(state => ({ ...state, leaderboard: { isLoading: false, data: data || [] } }));
             } catch (error) {
                 console.error("Failed to fetch leaderboard:", error);
-                update(state => {
-                    state.leaderboard.isLoading = false;
-                    return state;
-                });
+                update(state => ({ ...state, leaderboard: { ...state.leaderboard, isLoading: false } }));
             }
         },
+        createClan: async (name: string) => {
+            const state = get(store);
+            if (!state.telegramId) return;
+            try {
+                await api.createClan(name, state.telegramId);
+                await storeMethods.loadStateFromServer(state.telegramId);
+            } catch (error) {
+                console.error("Failed to create clan:", error);
+            }
+        },
+        joinClan: async (clanId: number) => {
+            const state = get(store);
+            if (!state.telegramId) return;
+            try {
+                await api.joinClan(clanId, state.telegramId);
+                await storeMethods.loadStateFromServer(state.telegramId);
+            } catch (error) {
+                console.error("Failed to join clan:", error);
+            }
+        }
     };
-
+    return storeMethods;
 }
 
 export const gameStore = createGameStore();

@@ -142,6 +142,7 @@ export interface GameState {
         isLoading: boolean;
         data: LeaderboardEntry[];
     };
+    clan: Clan | null;
 }
 export interface LeaderboardEntry {
     username: string;
@@ -151,4 +152,14 @@ export interface LeaderboardEntry {
 export interface Referral {
     telegram_id: string;
     username: string;
+}
+export interface ClanMember {
+    telegram_id: string;
+    username: string;
+}
+
+export interface Clan {
+    id: number;
+    name: string;
+    members: ClanMember[];
 }

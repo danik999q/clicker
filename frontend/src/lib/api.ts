@@ -45,7 +45,7 @@ export async function registerUser(telegramId: number, username: string): Promis
     });
 }
 
-export function saveUserState(telegramId: number, gameState: SavableGameState): void {
+export function saveUserState(telegramId: number, gameState: Omit<GameState, "isLoading" | "floatingBonus" | "leaderboard" | "offlineReport" | "activeView">): void {
     if (!telegramId) return;
 
     const url = `${API_BASE_URL}/users/${telegramId}/state`;
@@ -66,4 +66,26 @@ export function saveUserState(telegramId: number, gameState: SavableGameState): 
 
 export async function fetchLeaderboard(): Promise<any> {
     return fetchApi(`/leaderboard`);
+}
+
+export async function createClan(name: string, leaderId: number): Promise<any> {
+    return fetchApi(`/clans`, {
+        method: 'POST',
+        body: JSON.stringify({ name, leader_id: leaderId })
+    });
+}
+
+export async function joinClan(clanId: number, userId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/join`, {
+        method: 'POST',
+        body: JSON.stringify({ user_id: userId })
+    });
+}
+
+export async function fetchUserClan(telegramId: number): Promise<any> {
+    return fetchApi(`/users/${telegramId}/clan`);
+}
+
+export async function fetchAllClans(): Promise<any> {
+    return fetchApi(`/clans`);
 }

@@ -4,6 +4,7 @@
     import { fetchReferrals } from '$lib/referralStore';
     import ReferralList from './ReferralList.svelte';
     import LeaderboardView from './LeaderboardView.svelte';
+    import ClanView from './ClanView.svelte';
 
     let activeTab = 'referrals';
     let buttonText = 'Копировать';
@@ -32,6 +33,7 @@
     <div class="sub-tabs">
         <button class:active={activeTab === 'referrals'} on:click={() => activeTab = 'referrals'}>Приглашения</button>
         <button class:active={activeTab === 'leaderboard'} on:click={() => activeTab = 'leaderboard'}>Лидеры</button>
+        <button class:active={activeTab === 'clans'} on:click={() => activeTab = 'clans'}>Кланы</button>
     </div>
 
     {#if activeTab === 'referrals'}
@@ -67,6 +69,8 @@
         </div>
     {:else if activeTab === 'leaderboard'}
         <LeaderboardView />
+    {:else if activeTab === 'clans'}
+        <ClanView />
     {/if}
 </div>
 

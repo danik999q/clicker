@@ -22,6 +22,14 @@ async function setupDatabase() {
     const client = await pool.connect();
     try {
         await client.query(`
+            CREATE TABLE IF NOT EXISTS clans (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) UNIQUE NOT NULL,
+                leader_id TEXT NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+                )
+        `);
+        await client.query(`
             CREATE TABLE IF NOT EXISTS users (
                 telegram_id TEXT PRIMARY KEY,
                 username TEXT,
@@ -29,6 +37,9 @@ async function setupDatabase() {
                 game_state JSONB,
                 wallet_address TEXT
             )
+        `);
+        await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS clan_id INTEGER REFERENCES clans(id)
         `);
         console.log('Connected to the game database (PostgreSQL).');
     } finally {
@@ -54,7 +65,7 @@ async function main() {
             const leaderboardData = users.map(user => {
                 try {
                     if (!user.game_state) return null;
-                    const state = user.game_state; // game_state уже является JSONB
+                    const state = user.game_state;
                     return {
                         username: user.username || 'Anonymous',
                         prestigePoints: state.prestigePoints || 0,
@@ -157,6 +168,88 @@ async function main() {
         try {
             const result = await pool.query("SELECT telegram_id, username FROM users WHERE referrer_id = $1", [telegram_id]);
             res.json(result.rows);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    app.post('/api/clans', async (req, res) => {
+        const { name, leader_id } = req.body;
+        if (!name || !leader_id) {
+            return res.status(400).json({ error: 'Имя клана и ID лидера обязательны' });
+        }
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            const userResult = await client.query('SELECT clan_id FROM users WHERE telegram_id = $1', [leader_id]);
+            if (userResult.rows[0] && userResult.rows[0].clan_id) {
+                return res.status(400).json({ error: 'Вы уже состоите в клане' });
+            }
+
+            const clanResult = await client.query('INSERT INTO clans (name, leader_id) VALUES ($1, $2) RETURNING id', [name, leader_id]);
+            const clanId = clanResult.rows[0].id;
+
+            await client.query('UPDATE users SET clan_id = $1 WHERE telegram_id = $2', [clanId, leader_id]);
+
+            await client.query('COMMIT');
+            res.status(201).json({ id: clanId, name, leader_id });
+        } catch (err) {
+            await client.query('ROLLBACK');
+            res.status(500).json({ error: 'Клан с таким именем уже существует или произошла ошибка' });
+        } finally {
+            client.release();
+        }
+    });
+
+    app.get('/api/clans', async (req, res) => {
+        try {
+            const result = await pool.query(`
+                SELECT c.id, c.name, (SELECT COUNT(*) FROM users u WHERE u.clan_id = c.id) as "memberCount"
+                FROM clans c ORDER BY "memberCount" DESC
+            `);
+            res.json(result.rows);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    app.post('/api/clans/:id/join', async (req, res) => {
+        const { id: clanId } = req.params;
+        const { user_id } = req.body;
+        if (!user_id) {
+            return res.status(400).json({ error: 'user_id обязателен' });
+        }
+        try {
+            const userResult = await pool.query('SELECT clan_id FROM users WHERE telegram_id = $1', [user_id]);
+            if (userResult.rows[0] && userResult.rows[0].clan_id) {
+                return res.status(400).json({ error: 'Вы уже состоите в клане' });
+            }
+
+            await pool.query('UPDATE users SET clan_id = $1 WHERE telegram_id = $2', [clanId, user_id]);
+            res.json({ message: 'Вы успешно вступили в клан' });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    app.get('/api/users/:telegram_id/clan', async (req, res) => {
+        const { telegram_id } = req.params;
+        try {
+            const userResult = await pool.query('SELECT clan_id FROM users WHERE telegram_id = $1', [telegram_id]);
+            const user = userResult.rows[0];
+
+            if (!user || !user.clan_id) {
+                return res.json(null);
+            }
+
+            const clanResult = await pool.query('SELECT id, name FROM clans WHERE id = $1', [user.clan_id]);
+            const clan = clanResult.rows[0];
+
+            const membersResult = await pool.query('SELECT telegram_id, username FROM users WHERE clan_id = $1', [user.clan_id]);
+            clan.members = membersResult.rows;
+
+            res.json(clan);
         } catch (err) {
             res.status(500).json({ error: err.message });
         }
