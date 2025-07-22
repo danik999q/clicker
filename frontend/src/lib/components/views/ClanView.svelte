@@ -52,22 +52,28 @@
     <div class="tab-content">
         {#if activeTab === 'myClan'}
             {#if $gameStore.clan}
-                <div class="my-clan-card">
-                    <span class="my-clan-badge">Ваш клан</span>
-                    <h2>{$gameStore.clan.name}</h2>
+                <div class="my-clan-view">
+                    <div class="clan-header">
+                        <span class="clan-badge">Ваш клан</span>
+                        <h2 class="clan-title">{$gameStore.clan.name}</h2>
+                    </div>
 
                     <div class="clan-stats-grid">
                         <div class="stat-card">
-                            <span class="value">{formatNumber($gameStore.clan.totalViews)}</span>
                             <span class="label">Всего просмотров</span>
+                            <span class="value">{formatNumber($gameStore.clan.totalViews)}</span>
                         </div>
                         <div class="stat-card">
-                            <span class="value">+{clanBonus.toFixed(1)}%</span>
-                            <span class="label">Бонус к доходу</span>
+                            <span class="label">Участников</span>
+                            <span class="value">{$gameStore.clan.members.length}</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="label">Бонус дохода</span>
+                            <span class="value bonus">+{clanBonus.toFixed(1)}%</span>
                         </div>
                     </div>
 
-                    <div class="list-header">Участники ({$gameStore.clan.members.length}):</div>
+                    <div class="list-header">Состав клана</div>
                     <ol class="member-list">
                         {#each $gameStore.clan.members as member (member.telegram_id)}
                             <li class="member-item">
@@ -106,7 +112,7 @@
                                 <span class="rank">#{i + 1}</span>
                                 <div class="clan-details">
                                     <span class="clan-name">{clan.name}</span>
-                                    <span class="clan-members">{clan.memberCount} уч. / {formatNumber(clan.totalViews)} просмотров</span>
+                                    <span class="clan-members">{clan.memberCount} уч. / {formatNumber(clan.totalViews)}</span>
                                 </div>
                             </div>
                             {#if !$gameStore.clan}
@@ -128,17 +134,26 @@
     .sub-tabs button.active { background-color: var(--primary-accent); color: #064e3b; }
     .tab-content { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; }
 
-    .my-clan-card { background-color: var(--surface-color); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--primary-accent); box-shadow: 0 0 15px rgba(16, 185, 129, 0.1); text-align: center; }
-    .my-clan-badge { background-color: var(--primary-accent); color: #064e3b; padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.8rem; font-weight: 700; }
-    h2 { margin: 1rem 0; }
-    .clan-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
-    .stat-card { background-color: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 8px; }
-    .stat-card .value { display: block; font-size: 1.5rem; font-weight: 700; color: var(--primary-accent); }
-    .stat-card .label { font-size: 0.8rem; color: var(--text-secondary); }
+    .clan-header {
+        background: linear-gradient(45deg, var(--surface-color), #1f2937);
+        padding: 1.5rem;
+        border-radius: 12px;
+        text-align: center;
+        border: 1px solid var(--border-color);
+        margin-bottom: 1rem;
+    }
+    .clan-badge { background-color: var(--primary-accent); color: #064e3b; padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.8rem; font-weight: 700; }
+    .clan-title { font-size: 2rem; margin: 0.5rem 0 0 0; }
+
+    .clan-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+    .stat-card { background-color: var(--surface-color); padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); }
+    .stat-card .label { display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.25rem; }
+    .stat-card .value { display: block; font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+    .stat-card .value.bonus { color: var(--primary-accent); }
 
     .list-header { font-weight: 700; text-align: left; margin-bottom: 0.5rem; padding-left: 0.5rem; }
-    .member-list { list-style: decimal inside; padding: 0; max-height: 250px; overflow-y: auto; text-align: left; }
-    .member-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background-color: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 0.5rem; }
+    .member-list { list-style: none; padding: 0; max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; }
+    .member-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 6px; }
     .member-name { font-weight: 500; }
     .member-score { font-weight: 600; color: var(--primary-accent); }
 
@@ -155,12 +170,12 @@
     .clan-list { background-color: var(--surface-color); border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden; }
     .clan-list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); }
     .clan-list-item:last-child { border-bottom: none; }
-    .rank-info { display: flex; align-items: center; gap: 1rem; }
-    .rank { font-weight: 700; color: var(--text-secondary); font-size: 1.1rem; }
-    .clan-details { display: flex; flex-direction: column; align-items: flex-start; }
+    .rank-info { display: flex; align-items: center; gap: 1rem; text-align: left; }
+    .rank { font-weight: 700; color: var(--text-secondary); font-size: 1.1rem; width: 2rem; }
+    .clan-details { display: flex; flex-direction: column; }
     .clan-name { font-weight: 500; }
     .clan-members { font-size: 0.8rem; color: var(--text-secondary); }
-    .join-button { background-color: var(--secondary-accent); color: #0d1117; border: none; border-radius: 6px; padding: 0.5rem 1rem; font-weight: 600; cursor: pointer; transition: filter 0.2s; }
+    .join-button { background-color: var(--secondary-accent); color: #0d1117; border: none; border-radius: 6px; padding: 0.5rem 1rem; font-weight: 600; cursor: pointer; transition: filter 0.2s; white-space: nowrap; }
     .join-button:hover { filter: brightness(1.1); }
     .placeholder { padding: 2rem; color: var(--text-secondary); }
 </style>
