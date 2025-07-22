@@ -1,9 +1,8 @@
-<script>
-    import { gameStore } from '$lib/store.ts';
-    import { formatNumber } from '$lib/utils.ts';
+<script lang="ts">
+    import { gameStore } from '$lib/store';
+    import { formatNumber } from '$lib/utils';
 
     export let report;
-
     function formatTime(seconds) {
         if (seconds < 60) return `${seconds} сек.`;
         if (seconds < 3600) return `${Math.floor(seconds / 60)} мин.`;
@@ -13,80 +12,39 @@
     }
 </script>
 
-<div class="modal-backdrop">
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
     <div class="modal-content">
-        <h2>С возвращением!</h2>
-        <p>За время вашего отсутствия</p>
-        <p class="time-away">({formatTime(report.timeAway)})</p>
-        <p>вы заработали:</p>
-        <p class="views-earned">{formatNumber(report.viewsEarned)} просмотров</p>
-        <button class="action-button" on:click={() => gameStore.clearOfflineReport()}>Продолжить</button>
+        <span class="text-5xl mb-4">👋</span>
+        <h2 class="text-3xl font-bold">С возвращением!</h2>
+        <p class="text-text-secondary my-2">
+            Пока вас не было ({formatTime(report.timeAway)}), ваши мемы работали!
+        </p>
+        <p class="text-text-secondary mt-4">Вы заработали:</p>
+        <p class="earned-views">
+            {formatNumber(report.viewsEarned)}
+        </p>
+        <button
+                class="btn-primary mt-6"
+                on:click={() => gameStore.clearOfflineReport()}>
+            Продолжить
+        </button>
     </div>
 </div>
 
 <style>
-    .modal-backdrop {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.7);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-    }
     .modal-content {
-        background-color: var(--surface-color);
-        color: var(--text-primary);
-        padding: 2rem;
-        border-radius: 16px;
-        border: 1px solid var(--border-color);
-        text-align: center;
-        width: 90%;
-        max-width: 400px;
+        @apply bg-surface text-text-primary p-8 rounded-2xl border border-border text-center w-11/12 max-w-md;
         animation: fade-in 0.3s ease-out;
+        box-shadow: inset 0 4px 0 0 var(--primary-accent), 0 0 30px -10px var(--primary-glow);
     }
-    h2 {
-        margin-top: 0;
-        font-size: 1.8rem;
+
+    .earned-views {
+        @apply text-4xl font-bold text-primary my-4;
+        text-shadow: 0 0 15px var(--primary-glow);
     }
-    p {
-        color: var(--text-secondary);
-        margin: 0.5rem 0;
-    }
-    .time-away {
-        font-size: 0.9rem;
-    }
-    .views-earned {
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--primary-accent);
-        margin: 1rem 0 1.5rem 0;
-    }
-    .action-button {
-        background-color: var(--primary-accent);
-        color: #064e3b;
-        font-weight: 700;
-        border: none;
-        padding: 1rem;
-        border-radius: 8px;
-        cursor: pointer;
-        width: 100%;
-        transition: background-color 0.2s ease;
-    }
-    .action-button:hover {
-        background-color: #6ee7b7;
-    }
+
     @keyframes fade-in {
-        from {
-            opacity: 0;
-            transform: scale(0.9);
-        }
-        to {
-            opacity: 1;
-            transform: scale(1);
-        }
+        from { opacity: 0; transform: scale(0.9); }
+        to { opacity: 1; transform: scale(1); }
     }
 </style>
