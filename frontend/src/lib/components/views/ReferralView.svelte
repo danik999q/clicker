@@ -85,7 +85,7 @@
     }
     .sub-tabs {
         display: flex;
-        justify-content: center;
+        justify-content: space-between;
         gap: 0.5rem;
         background-color: var(--surface-color);
         padding: 0.25rem;
@@ -93,10 +93,12 @@
         margin-bottom: 1.5rem;
     }
     .sub-tabs button {
+        width: 33%;
         flex-grow: 1;
         background: none;
         border: none;
         color: var(--text-secondary);
+        font-size: 0.75rem;
         font-weight: 600;
         padding: 0.5rem;
         border-radius: 6px;
@@ -132,7 +134,7 @@
     }
     .link-container input {
         flex-grow: 1;
-        background-color: #111827;
+        background-color: #ccdcff;
         border: 1px solid var(--border-color);
         color: var(--text-secondary);
         padding: 0.75rem;
@@ -191,7 +193,7 @@
         margin-bottom: 1rem;
     }
     .stat-card {
-        background-color: rgba(17, 24, 39, 0.6);
+        background-color: rgba(162, 237, 251, 0.6);
         backdrop-filter: blur(8px);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 12px;

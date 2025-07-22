@@ -168,11 +168,11 @@
     .leave-button { background-color: #4b0000; color: #ff8a8a; border: 1px solid #7f1d1d; width: 100%; padding: 0.75rem; border-radius: 8px; font-weight: 700; cursor: pointer; margin-top: 1.5rem; transition: background-color 0.2s; }
     .leave-button:hover { background-color: #7f1d1d; }
 
-    .create-clan-card { background-color: var(--surface-color); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border-color); text-align: center; }
-    .create-clan-card h3 { margin: 0 0 0.5rem 0; }
-    .create-clan { display: flex; gap: 0.5rem; }
-    .create-clan input { flex-grow: 1; background-color: #111827; border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.75rem; border-radius: 8px; font-family: var(--font-sans); font-size: 1rem; }
-    .create-clan button { background-color: var(--primary-accent); color: #064e3b; border: none; padding: 0 1.5rem; font-weight: 700; border-radius: 8px; cursor: pointer; transition: background-color 0.2s; }
+    .create-clan-card { background-color: var(--surface-color); padding: 1rem; border-radius: 12px; border: 1px solid var(--border-color); text-align: center; }
+    .create-clan-card h3 { margin: 0 0 0.7rem 0; }
+    .create-clan { display: flex; flex-direction: row; justify-content: space-between;}
+    .create-clan input { max-width: 50%; flex-grow: 1; margin-right: 5px; background-color: #cddcff; border: 1px solid var(--border-color); color: var(--text-primary); padding: 0.75rem; border-radius: 8px; font-family: var(--font-sans); font-size: 1rem; }
+    .create-clan button { width: 40%; text-align: center; background-color: var(--primary-accent); color: #064e3b; border: none; padding: 0 1rem; font-weight: 700; border-radius: 8px; cursor: pointer; transition: background-color 0.2s; }
     .create-clan button:disabled { opacity: 0.5; cursor: not-allowed; }
 
     .clan-list { background-color: var(--surface-color); border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden; }
@@ -186,4 +186,9 @@
     .join-button { background-color: var(--secondary-accent); color: #0d1117; border: none; border-radius: 6px; padding: 0.5rem 1rem; font-weight: 600; cursor: pointer; transition: filter 0.2s; white-space: nowrap; }
     .join-button:hover { filter: brightness(1.1); }
     .placeholder { padding: 2rem; color: var(--text-secondary); }
+    @media(max-width: 360px) {
+        .view-container {
+            padding: 0;
+        }
+    }
 </style>

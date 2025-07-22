@@ -71,7 +71,7 @@
     .name {
         font-size: 0.75em;
         font-weight: bold;
-        color: var(--text-primary);
+        color: var(--text-third);
         text-align: center;
         line-height: 1.1;
     }

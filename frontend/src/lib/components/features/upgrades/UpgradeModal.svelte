@@ -69,6 +69,7 @@
         backdrop-filter: blur(4px);
     }
     .modal-content {
+        margin: 0 10px;
         position: relative;
         background-color: var(--surface-color);
         color: var(--text-primary);
