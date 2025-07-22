@@ -96,3 +96,14 @@ export async function leaveClan(userId: number): Promise<any> {
         body: JSON.stringify({ user_id: userId })
     });
 }
+
+export async function fetchClanRaid(clanId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/raid`);
+}
+
+export async function attackRaidBoss(raidId: number, userId: number, damage: number): Promise<any> {
+    return fetchApi(`/raids/attack`, {
+        method: 'POST',
+        body: JSON.stringify({ raidId, userId, damage })
+    });
+}

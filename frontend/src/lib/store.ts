@@ -34,6 +34,7 @@ function createGameStore() {
         prestigePoints: 0,
         telegramId: null,
         clan: null,
+        raid: null,
         referralSystem: { userId: null, referredCount: 0, earnings: 0 },
         walletAddress: null,
         isWalletConnected: false,
@@ -163,6 +164,11 @@ function createGameStore() {
                     api.fetchUserClan(telegramId)
                 ]);
 
+                let raidInfo = null;
+                if (clanInfo) {
+                    raidInfo = await api.fetchClanRaid(clanInfo.id);
+                }
+
                 let offlineReport: OfflineReport | null = null;
                 if (serverState.lastSaveTime) {
                     const timeDiff = Math.floor((Date.now() - serverState.lastSaveTime) / 1000);
@@ -180,6 +186,7 @@ function createGameStore() {
                     ...defaultState,
                     ...serverState,
                     clan: clanInfo,
+                    raid: raidInfo,
                     upgradeTrees: { ...initializeUpgradeTrees(), ...(serverState.upgradeTrees || {}) },
                     telegramId,
                     isLoading: false,
@@ -354,6 +361,21 @@ function createGameStore() {
             } catch (error) {
                 console.error("Failed to join clan:", error);
             }
+        },
+        attackRaidBoss: () => {
+            const state = get(store);
+            if (!state.raid || !state.telegramId) return;
+
+            const damage = calculateClickValue(state);
+
+            update(s => {
+                if (s.raid) {
+                    s.raid.boss_health -= damage;
+                }
+                return s;
+            });
+
+            api.attackRaidBoss(state.raid.id, state.telegramId, damage);
         },
         leaveClan: async () => {
             const state = get(store);

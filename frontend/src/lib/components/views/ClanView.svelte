@@ -4,8 +4,10 @@
     import * as api from '$lib/api';
     import { formatNumber } from '$lib/utils';
     import type { ClanLeaderboardEntry } from '$lib/types';
+    import RaidView from './RaidView.svelte'; // Импортируем новый компонент рейда
 
     let activeTab: 'myClan' | 'leaderboard' = 'myClan';
+    let clanSubView: 'main' | 'raid' = 'main'; // Переключатель между кланом и рейдом
     let newClanName = '';
 
     let leaderboard: ClanLeaderboardEntry[] = [];
@@ -52,39 +54,49 @@
     <div class="tab-content">
         {#if activeTab === 'myClan'}
             {#if $gameStore.clan}
-                <div class="my-clan-view">
-                    <div class="clan-header">
-                        <span class="clan-badge">Ваш клан</span>
-                        <h2 class="clan-title">{$gameStore.clan.name}</h2>
+                {#if clanSubView === 'main'}
+                    <div class="my-clan-view">
+                        <div class="clan-header">
+                            <span class="clan-badge">Ваш клан</span>
+                            <h2 class="clan-title">{$gameStore.clan.name}</h2>
+                        </div>
+
+                        {#if $gameStore.raid}
+                            <button class="raid-button" on:click={() => clanSubView = 'raid'}>
+                                ⚡️ В рейд!
+                            </button>
+                        {/if}
+
+                        <div class="clan-stats-grid">
+                            <div class="stat-card">
+                                <span class="label">Всего просмотров</span>
+                                <span class="value">{formatNumber($gameStore.clan.totalViews)}</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="label">Участников</span>
+                                <span class="value">{$gameStore.clan.members.length}</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="label">Бонус дохода</span>
+                                <span class="value bonus">+{clanBonus.toFixed(1)}%</span>
+                            </div>
+                        </div>
+
+                        <div class="list-header">Состав клана</div>
+                        <ol class="member-list">
+                            {#each $gameStore.clan.members as member (member.telegram_id)}
+                                <li class="member-item">
+                                    <span class="member-name">{member.username || `User ${member.telegram_id}`}</span>
+                                    <span class="member-score">{formatNumber(member.totalViews)}</span>
+                                </li>
+                            {/each}
+                        </ol>
+
+                        <button class="leave-button" on:click={() => gameStore.leaveClan()}>Покинуть клан</button>
                     </div>
-
-                    <div class="clan-stats-grid">
-                        <div class="stat-card">
-                            <span class="label">Всего просмотров</span>
-                            <span class="value">{formatNumber($gameStore.clan.totalViews)}</span>
-                        </div>
-                        <div class="stat-card">
-                            <span class="label">Участников</span>
-                            <span class="value">{$gameStore.clan.members.length}</span>
-                        </div>
-                        <div class="stat-card">
-                            <span class="label">Бонус дохода</span>
-                            <span class="value bonus">+{clanBonus.toFixed(1)}%</span>
-                        </div>
-                    </div>
-
-                    <div class="list-header">Состав клана</div>
-                    <ol class="member-list">
-                        {#each $gameStore.clan.members as member (member.telegram_id)}
-                            <li class="member-item">
-                                <span class="member-name">{member.username || `User ${member.telegram_id}`}</span>
-                                <span class="member-score">{formatNumber(member.totalViews)}</span>
-                            </li>
-                        {/each}
-                    </ol>
-
-                    <button class="leave-button" on:click={() => gameStore.leaveClan()}>Покинуть клан</button>
-                </div>
+                {:else if clanSubView === 'raid'}
+                    <RaidView on:back={() => clanSubView = 'main'} />
+                {/if}
             {/if}
         {:else if activeTab === 'leaderboard'}
             {#if !$gameStore.clan}
@@ -134,16 +146,12 @@
     .sub-tabs button.active { background-color: var(--primary-accent); color: #064e3b; }
     .tab-content { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; }
 
-    .clan-header {
-        background: linear-gradient(45deg, var(--surface-color), #1f2937);
-        padding: 1.5rem;
-        border-radius: 12px;
-        text-align: center;
-        border: 1px solid var(--border-color);
-        margin-bottom: 1rem;
-    }
+    .clan-header { background: linear-gradient(45deg, var(--surface-color), #1f2937); padding: 1.5rem; border-radius: 12px; text-align: center; border: 1px solid var(--border-color); }
     .clan-badge { background-color: var(--primary-accent); color: #064e3b; padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.8rem; font-weight: 700; }
     .clan-title { font-size: 2rem; margin: 0.5rem 0 0 0; }
+
+    .raid-button { background: linear-gradient(45deg, #a78bfa, #7c3aed); color: white; width: 100%; padding: 1rem; border-radius: 8px; font-weight: 700; cursor: pointer; margin: 1rem 0; border: none; box-shadow: 0 4px 15px rgba(167, 139, 250, 0.3); transition: all 0.2s ease; font-size: 1.1rem; }
+    .raid-button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4); }
 
     .clan-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
     .stat-card { background-color: var(--surface-color); padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); }
@@ -152,7 +160,7 @@
     .stat-card .value.bonus { color: var(--primary-accent); }
 
     .list-header { font-weight: 700; text-align: left; margin-bottom: 0.5rem; padding-left: 0.5rem; }
-    .member-list { list-style: none; padding: 0; max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; }
+    .member-list { list-style: decimal inside; padding: 0; max-height: 250px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; }
     .member-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background-color: var(--surface-color); border: 1px solid var(--border-color); border-radius: 6px; }
     .member-name { font-weight: 500; }
     .member-score { font-weight: 600; color: var(--primary-accent); }

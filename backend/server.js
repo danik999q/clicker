@@ -41,6 +41,26 @@ async function setupDatabase() {
         await client.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS clan_id INTEGER REFERENCES clans(id)
         `);
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS raids (
+                id SERIAL PRIMARY KEY,
+                clan_id INTEGER NOT NULL REFERENCES clans(id) ON DELETE CASCADE,
+                boss_health NUMERIC NOT NULL,
+                max_health NUMERIC NOT NULL,
+                start_date TIMESTAMPTZ NOT NULL,
+                end_date TIMESTAMPTZ NOT NULL,
+                is_active BOOLEAN DEFAULT TRUE
+            )
+        `);
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS raid_participants (
+                raid_id INTEGER NOT NULL REFERENCES raids(id) ON DELETE CASCADE,
+                user_id TEXT NOT NULL,
+                damage_dealt NUMERIC DEFAULT 0,
+                reward_claimed BOOLEAN DEFAULT FALSE,
+                PRIMARY KEY (raid_id, user_id)
+            )
+        `);
         console.log('Connected to the game database (PostgreSQL).');
     } finally {
         client.release();
@@ -295,6 +315,76 @@ async function main() {
             res.json({ message: 'Вы покинули клан' });
         } catch (err) {
             res.status(500).json({ error: err.message });
+        }
+    });
+
+    app.get('/api/clans/:id/raid', async (req, res) => {
+        const { id: clanId } = req.params;
+        const now = new Date();
+        const client = await pool.connect();
+        try {
+            let raidResult = await client.query('SELECT * FROM raids WHERE clan_id = $1 AND is_active = TRUE AND end_date > $2', [clanId, now]);
+            let raid = raidResult.rows[0];
+
+            if (!raid) {
+                const clanMembersResult = await client.query('SELECT telegram_id, game_state FROM users WHERE clan_id = $1', [clanId]);
+                const members = clanMembersResult.rows;
+                if (members.length === 0) {
+                    return res.json(null);
+                }
+
+                const totalClanViewsPerHour = members.reduce((sum, member) => {
+                    const passiveIncome = member.game_state?.memes?.reduce((s, m) => s + (m.passiveViews || 0) * (m.level || 0), 0) || 0;
+                    return sum + passiveIncome;
+                }, 0) * 3600;
+
+                const bossHealth = Math.max(1e9, totalClanViewsPerHour * 24 * 3); // Здоровье ~ суммарному доходу клана за 3 дня
+
+                const startDate = new Date();
+                const endDate = new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000); // Рейд длится 7 дней
+
+                const newRaidResult = await client.query(
+                    'INSERT INTO raids (clan_id, boss_health, max_health, start_date, end_date) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+                    [clanId, bossHealth, bossHealth, startDate, endDate]
+                );
+                raid = newRaidResult.rows[0];
+            }
+
+            const participantsResult = await client.query('SELECT user_id, damage_dealt FROM raid_participants WHERE raid_id = $1 ORDER BY damage_dealt DESC', [raid.id]);
+            raid.participants = participantsResult.rows;
+
+            res.json(raid);
+        } catch (err) {
+            console.error(err.message);
+            res.status(500).json({ error: err.message });
+        } finally {
+            client.release();
+        }
+    });
+
+    app.post('/api/raids/attack', async (req, res) => {
+        const { userId, raidId, damage } = req.body;
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            await client.query('UPDATE raids SET boss_health = boss_health - $1 WHERE id = $2 AND boss_health > 0', [damage, raidId]);
+
+            await client.query(`
+                INSERT INTO raid_participants (raid_id, user_id, damage_dealt)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (raid_id, user_id)
+                DO UPDATE SET damage_dealt = raid_participants.damage_dealt + $3;
+            `, [raidId, userId, damage]);
+
+            await client.query('COMMIT');
+            res.status(200).json({ message: 'Attack successful' });
+        } catch (err) {
+            await client.query('ROLLBACK');
+            console.error(err.message);
+            res.status(500).json({ error: err.message });
+        } finally {
+            client.release();
         }
     });
 

@@ -143,6 +143,7 @@ export interface GameState {
         data: LeaderboardEntry[];
     };
     clan: Clan | null;
+    raid: Raid | null;
 }
 export interface LeaderboardEntry {
     username: string;
@@ -158,17 +159,29 @@ export interface ClanMember {
     username: string;
     totalViews: number;
 }
-
 export interface ClanLeaderboardEntry {
     id: number;
     name: string;
     memberCount: number;
     totalViews: number;
 }
-
 export interface Clan {
     id: number;
     name: string;
     members: ClanMember[];
     totalViews: number;
+}
+export interface RaidParticipant {
+    user_id: string;
+    damage_dealt: number;
+}
+export interface Raid {
+    id: number;
+    clan_id: number;
+    boss_health: number;
+    max_health: number;
+    start_date: string;
+    end_date: string;
+    is_active: boolean;
+    participants: RaidParticipant[];
 }
