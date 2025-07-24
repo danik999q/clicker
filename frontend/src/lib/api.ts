@@ -107,3 +107,49 @@ export async function attackRaidBoss(raidId: number, userId: number, damage: num
         body: JSON.stringify({ raidId, userId, damage })
     });
 }
+
+export async function submitClanApplication(clanId: number, userId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/apply`, {
+        method: 'POST',
+        body: JSON.stringify({ user_id: userId })
+    });
+}
+
+export async function approveClanApplication(clanId: number, userId: string, approverId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/applications/${userId}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ approver_id: approverId })
+    });
+}
+
+export async function rejectClanApplication(clanId: number, userId: string, approverId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/applications/${userId}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ approver_id: approverId })
+    });
+}
+
+export async function fetchClanApplications(clanId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/applications`);
+}
+
+export async function updateClanDescription(clanId: number, description: string, editorId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/description`, {
+        method: 'POST',
+        body: JSON.stringify({ description, editor_id: editorId })
+    });
+}
+
+export async function updateClanAvatar(clanId: number, avatarUrl: string, editorId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/avatar`, {
+        method: 'POST',
+        body: JSON.stringify({ avatar_url: avatarUrl, editor_id: editorId })
+    });
+}
+
+export async function changeClanRole(clanId: number, userId: string, newRoleId: string, changerId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/roles/${userId}`, {
+        method: 'POST',
+        body: JSON.stringify({ new_role_id: newRoleId, changer_id: changerId })
+    });
+}

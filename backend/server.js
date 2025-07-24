@@ -42,6 +42,9 @@ async function setupDatabase() {
             ALTER TABLE users ADD COLUMN IF NOT EXISTS clan_id INTEGER REFERENCES clans(id)
         `);
         await client.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS clan_role_id TEXT DEFAULT 'member'
+        `);
+        await client.query(`
             CREATE TABLE IF NOT EXISTS raids (
                 id SERIAL PRIMARY KEY,
                 clan_id INTEGER NOT NULL REFERENCES clans(id) ON DELETE CASCADE,
@@ -59,6 +62,15 @@ async function setupDatabase() {
                 damage_dealt NUMERIC DEFAULT 0,
                 reward_claimed BOOLEAN DEFAULT FALSE,
                 PRIMARY KEY (raid_id, user_id)
+            )
+        `);
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS clan_applications (
+                id SERIAL PRIMARY KEY,
+                clan_id INTEGER NOT NULL REFERENCES clans(id) ON DELETE CASCADE,
+                user_id TEXT NOT NULL REFERENCES users(telegram_id) ON DELETE CASCADE,
+                status TEXT DEFAULT 'pending',
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
             )
         `);
         console.log('Connected to the game database (PostgreSQL).');
@@ -210,7 +222,7 @@ async function main() {
             const clanResult = await client.query('INSERT INTO clans (name, leader_id) VALUES ($1, $2) RETURNING id', [name, leader_id]);
             const clanId = clanResult.rows[0].id;
 
-            await client.query('UPDATE users SET clan_id = $1 WHERE telegram_id = $2', [clanId, leader_id]);
+            await client.query('UPDATE users SET clan_id = $1, clan_role_id = $2 WHERE telegram_id = $3', [clanId, 'leader', leader_id]);
 
             await client.query('COMMIT');
             res.status(201).json({ id: clanId, name, leader_id });
@@ -246,7 +258,7 @@ async function main() {
                 return res.status(400).json({ error: 'Вы уже состоите в клане' });
             }
 
-            await pool.query('UPDATE users SET clan_id = $1 WHERE telegram_id = $2', [clanId, user_id]);
+            await pool.query('UPDATE users SET clan_id = $1, clan_role_id = $2 WHERE telegram_id = $3', [clanId, 'member', user_id]);
             res.json({ message: 'Вы успешно вступили в клан' });
         } catch (err) {
             res.status(500).json({ error: err.message });
@@ -270,14 +282,34 @@ async function main() {
             SELECT 
                 telegram_id, 
                 username, 
-                (game_state->>'totalViews')::numeric as "totalViews"
+                (game_state->>'totalViews')::numeric as "totalViews",
+                clan_role_id
             FROM users 
             WHERE clan_id = $1 
             ORDER BY "totalViews" DESC
         `, [user.clan_id]);
 
-            clan.members = membersResult.rows;
+            clan.members = membersResult.rows.map(m => ({
+                telegram_id: m.telegram_id,
+                username: m.username,
+                totalViews: m.totalViews,
+                roleId: m.clan_role_id || 'member'
+            }));
             clan.totalViews = clan.members.reduce((sum, member) => sum + (Number(member.totalViews) || 0), 0);
+
+            // Заявки
+            const appsResult = await pool.query(`
+                SELECT a.user_id, a.status, a.created_at, u.username
+                FROM clan_applications a
+                JOIN users u ON a.user_id = u.telegram_id
+                WHERE a.clan_id = $1 AND a.status = 'pending'
+                ORDER BY a.created_at ASC
+            `, [user.clan_id]);
+            clan.applications = appsResult.rows.map(a => ({
+                user: { telegram_id: a.user_id, username: a.username, totalViews: 0 },
+                date: a.created_at,
+                status: a.status
+            }));
 
             res.json(clan);
         } catch (err) {
@@ -385,6 +417,90 @@ async function main() {
             res.status(500).json({ error: err.message });
         } finally {
             client.release();
+        }
+    });
+
+    app.post('/api/clans/:clanId/roles/:userId', async (req, res) => {
+        const { clanId, userId } = req.params;
+        const { new_role_id, changer_id } = req.body;
+        const changerResult = await pool.query(
+            'SELECT clan_role_id FROM users WHERE clan_id = $1 AND telegram_id = $2',
+            [clanId, changer_id]
+        );
+        const changerRole = changerResult.rows[0]?.clan_role_id;
+        if (!changerRole || (changerRole !== 'leader' && changerRole !== 'officer')) {
+            return res.status(403).json({ error: 'Недостаточно прав для смены роли' });
+        }
+        await pool.query('UPDATE users SET clan_role_id = $1 WHERE clan_id = $2 AND telegram_id = $3', [new_role_id, clanId, userId]);
+        res.json({ message: 'Роль обновлена' });
+    });
+
+    app.post('/api/clans/:id/apply', async (req, res) => {
+        const { id: clanId } = req.params;
+        const { user_id } = req.body;
+        if (!user_id) return res.status(400).json({ error: 'user_id обязателен' });
+        try {
+            const userResult = await pool.query('SELECT clan_id FROM users WHERE telegram_id = $1', [user_id]);
+            if (userResult.rows[0] && userResult.rows[0].clan_id) {
+                return res.status(400).json({ error: 'Вы уже состоите в клане' });
+            }
+            const appResult = await pool.query('SELECT * FROM clan_applications WHERE clan_id = $1 AND user_id = $2 AND status = $3', [clanId, user_id, 'pending']);
+            if (appResult.rows.length > 0) {
+                return res.status(400).json({ error: 'Заявка уже подана' });
+            }
+            await pool.query('INSERT INTO clan_applications (clan_id, user_id) VALUES ($1, $2)', [clanId, user_id]);
+            res.json({ message: 'Заявка подана' });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    app.get('/api/clans/:id/applications', async (req, res) => {
+        const { id: clanId } = req.params;
+        try {
+            const result = await pool.query(`
+                SELECT a.id, a.user_id, a.status, a.created_at, u.username
+                FROM clan_applications a
+                JOIN users u ON a.user_id = u.telegram_id
+                WHERE a.clan_id = $1 AND a.status = 'pending'
+                ORDER BY a.created_at ASC
+            `, [clanId]);
+            res.json(result.rows);
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    app.post('/api/clans/:id/applications/:userId/approve', async (req, res) => {
+        const { id: clanId, userId } = req.params;
+        const { approver_id } = req.body;
+        const approverResult = await pool.query('SELECT clan_role_id FROM users WHERE clan_id = $1 AND telegram_id = $2', [clanId, approver_id]);
+        const approverRole = approverResult.rows[0]?.clan_role_id;
+        if (!approverRole || (approverRole !== 'leader' && approverRole !== 'officer')) {
+            return res.status(403).json({ error: 'Недостаточно прав' });
+        }
+        try {
+            await pool.query('UPDATE clan_applications SET status = $1 WHERE clan_id = $2 AND user_id = $3', ['approved', clanId, userId]);
+            await pool.query('UPDATE users SET clan_id = $1, clan_role_id = $2 WHERE telegram_id = $3', [clanId, 'member', userId]);
+            res.json({ message: 'Заявка одобрена' });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
+    app.post('/api/clans/:id/applications/:userId/reject', async (req, res) => {
+        const { id: clanId, userId } = req.params;
+        const { approver_id } = req.body;
+        const approverResult = await pool.query('SELECT clan_role_id FROM users WHERE clan_id = $1 AND telegram_id = $2', [clanId, approver_id]);
+        const approverRole = approverResult.rows[0]?.clan_role_id;
+        if (!approverRole || (approverRole !== 'leader' && approverRole !== 'officer')) {
+            return res.status(403).json({ error: 'Недостаточно прав' });
+        }
+        try {
+            await pool.query('UPDATE clan_applications SET status = $1 WHERE clan_id = $2 AND user_id = $3', ['rejected', clanId, userId]);
+            res.json({ message: 'Заявка отклонена' });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
         }
     });
 

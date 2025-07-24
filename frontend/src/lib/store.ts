@@ -387,6 +387,79 @@ function createGameStore() {
                 console.error("Failed to leave clan:", error);
             }
         },
+        submitClanApplication: async (clanId: number) => {
+            const state = get(store);
+            if (!state.telegramId) return;
+            try {
+                await api.submitClanApplication(clanId, state.telegramId);
+                await storeMethods.loadStateFromServer(state.telegramId);
+            } catch (error) {
+                console.error("Failed to submit clan application:", error);
+            }
+        },
+        approveClanApplication: async (userId: string) => {
+            const state = get(store);
+            if (!state.clan || !state.telegramId) return;
+            try {
+                await api.approveClanApplication(state.clan.id, userId, state.telegramId);
+                await storeMethods.loadStateFromServer(state.telegramId);
+            } catch (error) {
+                console.error("Failed to approve clan application:", error);
+            }
+        },
+        rejectClanApplication: async (userId: string) => {
+            const state = get(store);
+            if (!state.clan || !state.telegramId) return;
+            try {
+                await api.rejectClanApplication(state.clan.id, userId, state.telegramId);
+                await storeMethods.loadStateFromServer(state.telegramId);
+            } catch (error) {
+                console.error("Failed to reject clan application:", error);
+            }
+        },
+        fetchClanApplications: async (clanId: number) => {
+            try {
+                return await api.fetchClanApplications(clanId);
+            } catch (error) {
+                console.error("Failed to fetch clan applications:", error);
+                return [];
+            }
+        },
+        updateClanDescription: async (description: string) => {
+            const state = get(store);
+            if (!state.clan || !state.telegramId) return;
+            try {
+                await api.updateClanDescription(state.clan.id, description, state.telegramId);
+                await storeMethods.loadStateFromServer(state.telegramId);
+            } catch (error) {
+                console.error("Failed to update clan description:", error);
+            }
+        },
+        updateClanAvatar: async (avatarUrl: string) => {
+            const state = get(store);
+            if (!state.clan || !state.telegramId) return;
+            try {
+                await api.updateClanAvatar(state.clan.id, avatarUrl, state.telegramId);
+                await storeMethods.loadStateFromServer(state.telegramId);
+            } catch (error) {
+                console.error("Failed to update clan avatar:", error);
+            }
+        },
+        changeClanRole: async (userId: string, newRoleId: string) => {
+            const state = get(store);
+            if (!state.clan || !state.telegramId) return;
+            try {
+                await api.changeClanRole(state.clan.id, userId, newRoleId, state.telegramId);
+                await storeMethods.loadStateFromServer(state.telegramId);
+            } catch (error) {
+                console.error("Failed to change clan role:", error);
+            }
+        },
+        addClanEvent: (event: any) => update(state => {
+            if (!state.clan) return state;
+            state.clan.history = [event, ...(state.clan.history || [])];
+            return state;
+        }),
     };
     return storeMethods;
 }

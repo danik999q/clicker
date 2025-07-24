@@ -158,6 +158,7 @@ export interface ClanMember {
     telegram_id: string;
     username: string;
     totalViews: number;
+    roleId: string;
 }
 export interface ClanLeaderboardEntry {
     id: number;
@@ -165,10 +166,35 @@ export interface ClanLeaderboardEntry {
     memberCount: number;
     totalViews: number;
 }
+export interface ClanRole {
+    id: string;
+    name: string;
+    permissions: string[];
+}
+
+export interface ClanApplication {
+    user: ClanMember;
+    date: string;
+    status: 'pending' | 'approved' | 'rejected';
+}
+
+export interface ClanEvent {
+    type: 'join' | 'leave' | 'promote' | 'demote' | 'create' | 'edit' | 'raid_start' | 'raid_end' | 'custom';
+    user: ClanMember;
+    date: string;
+    details?: string;
+}
+
 export interface Clan {
     id: number;
     name: string;
+    description: string;
+    avatarUrl: string;
+    level: number;
     members: ClanMember[];
+    roles: ClanRole[];
+    applications: ClanApplication[];
+    history: ClanEvent[];
     totalViews: number;
 }
 export interface RaidParticipant {
