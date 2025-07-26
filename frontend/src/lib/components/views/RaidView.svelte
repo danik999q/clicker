@@ -1,5 +1,6 @@
 <script lang="ts">
     import { gameStore } from '$lib/store';
+    import { GameService } from '$lib/gameService';
     import { formatNumber } from '$lib/utils';
 
     $: raid = $gameStore.raid;
@@ -15,7 +16,7 @@
             </div>
             <p>{formatNumber(raid.boss_health)} / {formatNumber(raid.max_health)}</p>
 
-            <button class="boss-click-area" on:click={() => gameStore.attackRaidBoss()}>
+            <button class="boss-click-area" on:click={GameService.attackRaidBoss}>
                 <div class="boss-placeholder"></div>
             </button>
         </div>

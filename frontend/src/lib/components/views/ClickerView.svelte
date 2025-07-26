@@ -1,5 +1,6 @@
 <script lang="ts">
     import { gameStore } from '$lib/store';
+    import { GameService } from '$lib/gameService';
     import Header from '$lib/components/ui/Header.svelte';
 
     $: activeMeme = $gameStore.memes[$gameStore.activeMemeIndex];
@@ -8,7 +9,7 @@
 <div class="clicker-view">
     <Header />
     <div class="meme-container">
-        <button class="meme-button" on:click={() => gameStore.addViews()}>
+        <button class="meme-button" on:click={GameService.addViews}>
             <img src={activeMeme.imageUrl} alt={activeMeme.name} class="meme-image" />
         </button>
         <h2 class="meme-name">{activeMeme.name}</h2>

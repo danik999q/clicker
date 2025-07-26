@@ -2,9 +2,6 @@ import type { GameState } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-type SavableGameState = Omit<GameState, 'isLoading' | 'activeView' | 'offlineReport' | 'floatingBonus' | 'daily'>;
-
-
 async function fetchApi(path: string, options: RequestInit = {}): Promise<any> {
     const defaultHeaders = {
         'ngrok-skip-browser-warning': 'true',
@@ -22,7 +19,7 @@ async function fetchApi(path: string, options: RequestInit = {}): Promise<any> {
     const response = await fetch(`${API_BASE_URL}${path}`, config);
 
     if (!response.ok) {
-        const error = new Error(`API Error: ${response.status} ${response.statusText}`) as any;
+        const error = new Error(`API Error: ${response.status}`) as any;
         error.status = response.status;
         throw error;
     }
@@ -39,7 +36,7 @@ export async function loadUserState(telegramId: number): Promise<Partial<GameSta
 }
 
 export async function registerUser(telegramId: number, username: string): Promise<any> {
-    return fetchApi(`/register`, {
+    return fetchApi(`/users/register`, {
         method: 'POST',
         body: JSON.stringify({ telegram_id: telegramId, username: username || `user_${telegramId}` })
     });
@@ -63,23 +60,8 @@ export function saveUserState(telegramId: number, gameState: Omit<GameState, "is
     });
 }
 
-
 export async function fetchLeaderboard(): Promise<any> {
     return fetchApi(`/leaderboard`);
-}
-
-export async function createClan(name: string, leaderId: number): Promise<any> {
-    return fetchApi(`/clans`, {
-        method: 'POST',
-        body: JSON.stringify({ name, leader_id: leaderId })
-    });
-}
-
-export async function joinClan(clanId: number, userId: number): Promise<any> {
-    return fetchApi(`/clans/${clanId}/join`, {
-        method: 'POST',
-        body: JSON.stringify({ user_id: userId })
-    });
 }
 
 export async function fetchUserClan(telegramId: number): Promise<any> {
@@ -90,66 +72,24 @@ export async function fetchClanLeaderboard(): Promise<any> {
     return fetchApi(`/clans/leaderboard`);
 }
 
-export async function leaveClan(userId: number): Promise<any> {
-    return fetchApi(`/clans/leave`, {
+export async function createClan(name: string, leaderId: number): Promise<any> {
+    return fetchApi(`/clans`, {
         method: 'POST',
-        body: JSON.stringify({ user_id: userId })
+        headers: { 'x-user-id': String(leaderId) },
+        body: JSON.stringify({ name })
     });
 }
 
-export async function fetchClanRaid(clanId: number): Promise<any> {
-    return fetchApi(`/clans/${clanId}/raid`);
-}
-
-export async function attackRaidBoss(raidId: number, userId: number, damage: number): Promise<any> {
-    return fetchApi(`/raids/attack`, {
+export async function leaveClan(userId: number, clanId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/leave`, {
         method: 'POST',
-        body: JSON.stringify({ raidId, userId, damage })
+        headers: { 'x-user-id': String(userId) }
     });
 }
 
-export async function submitClanApplication(clanId: number, userId: number): Promise<any> {
-    return fetchApi(`/clans/${clanId}/apply`, {
+export async function attackRaidBoss(raidId: number, userId: number): Promise<any> {
+    return fetchApi(`/clans/raid/${raidId}/attack`, {
         method: 'POST',
-        body: JSON.stringify({ user_id: userId })
-    });
-}
-
-export async function approveClanApplication(clanId: number, userId: string, approverId: number): Promise<any> {
-    return fetchApi(`/clans/${clanId}/applications/${userId}/approve`, {
-        method: 'POST',
-        body: JSON.stringify({ approver_id: approverId })
-    });
-}
-
-export async function rejectClanApplication(clanId: number, userId: string, approverId: number): Promise<any> {
-    return fetchApi(`/clans/${clanId}/applications/${userId}/reject`, {
-        method: 'POST',
-        body: JSON.stringify({ approver_id: approverId })
-    });
-}
-
-export async function fetchClanApplications(clanId: number): Promise<any> {
-    return fetchApi(`/clans/${clanId}/applications`);
-}
-
-export async function updateClanDescription(clanId: number, description: string, editorId: number): Promise<any> {
-    return fetchApi(`/clans/${clanId}/description`, {
-        method: 'POST',
-        body: JSON.stringify({ description, editor_id: editorId })
-    });
-}
-
-export async function updateClanAvatar(clanId: number, avatarUrl: string, editorId: number): Promise<any> {
-    return fetchApi(`/clans/${clanId}/avatar`, {
-        method: 'POST',
-        body: JSON.stringify({ avatar_url: avatarUrl, editor_id: editorId })
-    });
-}
-
-export async function changeClanRole(clanId: number, userId: string, newRoleId: string, changerId: number): Promise<any> {
-    return fetchApi(`/clans/${clanId}/roles/${userId}`, {
-        method: 'POST',
-        body: JSON.stringify({ new_role_id: newRoleId, changer_id: changerId })
+        headers: { 'x-user-id': String(userId) }
     });
 }

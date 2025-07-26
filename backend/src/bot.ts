@@ -1,7 +1,8 @@
-require('dotenv').config();
+import dotenv from 'dotenv';
+dotenv.config();
 
-const TelegramBot = require('node-telegram-bot-api');
-const axios = require('axios');
+import TelegramBot from 'node-telegram-bot-api';
+import axios from 'axios';
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const webAppUrl = process.env.WEB_APP_URL;
@@ -14,11 +15,13 @@ if (!token || !webAppUrl || !apiBaseUrl) {
 
 const bot = new TelegramBot(token, { polling: true });
 
-bot.on('message', (msg) => {
-    if (msg.text && msg.text.startsWith('/start')) {
-        const chatId = msg.chat.id.toString();
-        const username = msg.from.username || `user_${chatId}`;
-        const parts = msg.text.split(' ');
+bot.on('message', (msg: TelegramBot.Message) => {
+    const chatId = msg.chat.id.toString();
+    const text = msg.text;
+
+    if (text && text.startsWith('/start')) {
+        const username = msg.from?.username || `user_${chatId}`;
+        const parts = text.split(' ');
         const referrerId = parts.length > 1 ? parts[1] : null;
 
         console.log(`[BOT] Received /start from ${chatId}. Referrer: ${referrerId || 'none'}`);
@@ -28,10 +31,10 @@ bot.on('message', (msg) => {
             username: username,
             referrer_id: referrerId
         }).catch(err => {
-            if (err.response) {
+            if (axios.isAxiosError(err) && err.response) {
                 console.error(`[BOT] API Error for user ${chatId}:`, err.response.status, err.response.data);
             } else {
-                console.error(`[BOT] Failed to process registration for user ${chatId}:`, err.message);
+                console.error(`[BOT] Failed to process registration for user ${chatId}:`, (err as Error).message);
             }
         });
 
