@@ -1,9 +1,18 @@
-<script>
-    import { gameStore } from '$lib/store.ts';
+<script lang="ts">
+    import { GameService } from '$lib/gameService';
+    import type { FloatingBonusType } from '$lib/types';
+
+    export let type: FloatingBonusType;
+
+    const icons = {
+        CLICK_FRENZY: '🔥',
+        INCOME_MULTIPLIER: '💰',
+        CASH_PAYOUT: '✨'
+    };
 </script>
 
-<button class="floating-bonus" on:click={() => gameStore.clickFloatingBonus()}>
-    ✨
+<button class="floating-bonus" on:click={GameService.clickFloatingBonus}>
+    {icons[type] || '✨'}
 </button>
 
 <style>

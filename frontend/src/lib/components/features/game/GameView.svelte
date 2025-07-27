@@ -1,25 +1,22 @@
-<script>
-    import { gameStore } from '$lib/store.ts';
-    import { calculateClickValue } from '$lib/gameLogic.ts';
+<script lang="ts">
+    import { gameStore } from '$lib/store';
+    import { GameService } from '$lib/gameService';
     import FloatingNumber from './FloatingNumber.svelte';
     import FloatingBonus from './FloatingBonus.svelte';
 
     $: activeMeme = $gameStore.memes[$gameStore.activeMemeIndex];
 
-    let floatingNumbers = [];
+    let floatingNumbers: { id: number; amount: number; x: number; y: number }[] = [];
 
-    function handleClick(event) {
-        const viewsEarned = calculateClickValue($gameStore);
-
-        gameStore.addViews();
+    function handleClick(event: MouseEvent) {
+        GameService.addViews();
 
         const newNumber = {
             id: Date.now() + Math.random(),
-            amount: viewsEarned,
+            amount: 1,
             x: event.clientX,
             y: event.clientY
         };
-
         floatingNumbers = [...floatingNumbers, newNumber];
     }
 </script>
@@ -43,7 +40,7 @@
 
     {#if $gameStore.floatingBonus.isActive}
         <div style="position: absolute; left: {$gameStore.floatingBonus.x}%; top: {$gameStore.floatingBonus.y}%; transform: translate(-50%, -50%);">
-            <FloatingBonus />
+            <FloatingBonus type={$gameStore.floatingBonus.type} />
         </div>
     {/if}
 </div>

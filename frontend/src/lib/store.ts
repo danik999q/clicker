@@ -28,7 +28,7 @@ const defaultState: GameState = {
     buyMultiplier: 1,
     lastSaveTime: Date.now(),
     offlineReport: null,
-    floatingBonus: { isActive: false, x: 50, y: 50, lifetime: 0 },
+    floatingBonus: { isActive: false, x: 50, y: 50, lifetime: 0, type: 'CASH_PAYOUT' },
     prestigePoints: 0,
     telegramId: null,
     clan: null,

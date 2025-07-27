@@ -3,7 +3,7 @@ import { gameStore } from './store';
 import * as api from './api';
 import * as constants from './constants';
 import { calculatePassiveIncome, calculateClickValue, calculateUpgradeCost } from './gameLogic';
-import type { GameState } from './types';
+import type { GameState, FloatingBonusType } from './types';
 
 const updateState = (updater: (state: GameState) => GameState) => {
     gameStore.update(updater);
@@ -50,6 +50,77 @@ const checkAndResetDailies = (state: GameState): GameState => {
 };
 
 export const GameService = {
+    initializeIntervals: () => {
+        setInterval(() => {
+            updateState(state => {
+                const now = Date.now();
+                if (state.activeBoosts.clickFrenzy.isActive && now > state.activeBoosts.clickFrenzy.expiry) {
+                    state.activeBoosts.clickFrenzy.isActive = false;
+                }
+                if (state.activeBoosts.incomeMultiplier.isActive && now > state.activeBoosts.incomeMultiplier.expiry) {
+                    state.activeBoosts.incomeMultiplier.isActive = false;
+                }
+
+                if (state.floatingBonus.isActive) {
+                    state.floatingBonus.lifetime--;
+                    if (state.floatingBonus.lifetime <= 0) {
+                        state.floatingBonus.isActive = false;
+                    }
+                }
+                return state;
+            });
+        }, 1000);
+
+        setInterval(() => {
+            updateState(state => {
+                if (!state.floatingBonus.isActive && Math.random() < 0.5) {
+                    const rand = Math.random();
+                    let type: FloatingBonusType;
+                    if (rand < 0.15) {
+                        type = 'CLICK_FRENZY';
+                    } else if (rand < 0.45) {
+                        type = 'INCOME_MULTIPLIER';
+                    } else {
+                        type = 'CASH_PAYOUT';
+                    }
+                    state.floatingBonus = {
+                        isActive: true,
+                        x: Math.random() * 80 + 10,
+                        y: Math.random() * 80 + 10,
+                        lifetime: constants.FLOATING_BONUS_LIFETIME_S,
+                        type: type
+                    };
+                }
+                return state;
+            });
+        }, constants.FLOATING_BONUS_INTERVAL_MS);
+    },
+
+    clickFloatingBonus: () => updateState(state => {
+        if (!state.floatingBonus.isActive) return state;
+
+        const bonusType = state.floatingBonus.type;
+        const now = Date.now();
+
+        switch (bonusType) {
+            case 'CLICK_FRENZY':
+                state.activeBoosts.clickFrenzy = { isActive: true, expiry: now + constants.CLICK_FRENZY_DURATION_S * 1000 };
+                break;
+            case 'INCOME_MULTIPLIER':
+                state.activeBoosts.incomeMultiplier = { isActive: true, expiry: now + constants.INCOME_MULTIPLIER_DURATION_S * 1000 };
+                break;
+            case 'CASH_PAYOUT':
+                const passiveIncome = calculatePassiveIncome(state);
+                const payout = (passiveIncome * 60 * 15) + (state.totalViews * 0.05);
+                state.totalViews += payout;
+                break;
+        }
+
+        state.floatingBonus.isActive = false;
+        const newState = updateDailyProgress(state, 'dailyBonuses', 1);
+        return newState;
+    }),
+
     addViews: () => updateState(state => {
         if (state.isLoading) return state;
         const viewsEarned = calculateClickValue(state);
@@ -156,6 +227,48 @@ export const GameService = {
         }
     },
 
+    submitClanApplication: async (clanId: number) => {
+        const state = get(gameStore);
+        if (!state.telegramId) return;
+        try {
+            await api.submitClanApplication(clanId, state.telegramId);
+        } catch (error) {
+            console.error("Failed to submit clan application:", error);
+        }
+    },
+
+    approveClanApplication: async (userId: string) => {
+        const state = get(gameStore);
+        if (!state.clan || !state.telegramId) return;
+        try {
+            await api.approveClanApplication(state.clan.id, userId, state.telegramId);
+            await gameStore.loadStateFromServer(state.telegramId);
+        } catch (error) {
+            console.error("Failed to approve clan application:", error);
+        }
+    },
+
+    rejectClanApplication: async (userId: string) => {
+        const state = get(gameStore);
+        if (!state.clan || !state.telegramId) return;
+        try {
+            await api.rejectClanApplication(state.clan.id, userId, state.telegramId);
+            await gameStore.loadStateFromServer(state.telegramId);
+        } catch (error) {
+            console.error("Failed to reject clan application:", error);
+        }
+    },
+
+    changeClanRole: async (userId: string, newRoleId: string) => {
+        const state = get(gameStore);
+        if (!state.clan || !state.telegramId) return;
+        try {
+            await api.changeClanRole(state.clan.id, userId, newRoleId, state.telegramId);
+            await gameStore.loadStateFromServer(state.telegramId);
+        } catch (error) {
+            console.error("Failed to change clan role:", error);
+        }
+    },
 };
 
 export function calculatePrestigeGain(views: number): number {

@@ -2,15 +2,32 @@
     import { gameStore } from '$lib/store';
     import { GameService } from '$lib/gameService';
     import Header from '$lib/components/ui/Header.svelte';
+    import ActiveBoosts from '../features/game/ActiveBoosts.svelte';
 
     $: activeMeme = $gameStore.memes[$gameStore.activeMemeIndex];
+
+    let isClicked = false;
+
+    function handleClick() {
+        GameService.addViews();
+        isClicked = true;
+        setTimeout(() => {
+            isClicked = false;
+        }, 100);
+    }
 </script>
 
 <div class="clicker-view">
     <Header />
+    <ActiveBoosts />
     <div class="meme-container">
-        <button class="meme-button" on:click={GameService.addViews}>
-            <img src={activeMeme.imageUrl} alt={activeMeme.name} class="meme-image" />
+        <button class="meme-button" on:click={handleClick}>
+            <img
+                    src={activeMeme.imageUrl}
+                    alt={activeMeme.name}
+                    class="meme-image"
+                    class:clicked={isClicked}
+            />
         </button>
         <h2 class="meme-name">{activeMeme.name}</h2>
     </div>
@@ -21,6 +38,7 @@
         display: flex;
         flex-direction: column;
         height: 100%;
+        position: relative;
     }
     .meme-container {
         flex-grow: 1;
@@ -37,9 +55,10 @@
         padding: 0;
         cursor: pointer;
         border-radius: 24px;
+        transition: transform 0.1s ease;
     }
     .meme-button:active {
-        transform: scale(0.95);
+        transform: scale(0.97);
     }
     .meme-image {
         width: 250px;
@@ -47,6 +66,10 @@
         border-radius: 24px;
         object-fit: cover;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        transition: transform 0.1s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    .meme-image.clicked {
+        transform: scale(0.95);
     }
     .meme-name {
         font-size: 1.5rem;

@@ -1,3 +1,5 @@
+export type FloatingBonusType = 'CLICK_FRENZY' | 'INCOME_MULTIPLIER' | 'CASH_PAYOUT';
+
 export interface Meme {
     id: string;
     name: string;
@@ -8,6 +10,14 @@ export interface Meme {
     passiveViews: number;
     upgradeCost: number;
     imageUrl: string;
+}
+
+export interface FloatingBonus {
+    isActive: boolean;
+    x: number;
+    y: number;
+    lifetime: number;
+    type: FloatingBonusType;
 }
 
 export interface Upgrade {
@@ -107,12 +117,7 @@ export interface GameState {
     buyMultiplier: number;
     lastSaveTime: number;
     offlineReport: OfflineReport | null;
-    floatingBonus: {
-        isActive: boolean;
-        x: number;
-        y: number;
-        lifetime: number;
-    };
+    floatingBonus: FloatingBonus;
     prestigePoints: number;
     telegramId: number | null;
     referralSystem: {

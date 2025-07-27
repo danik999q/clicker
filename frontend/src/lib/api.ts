@@ -44,20 +44,14 @@ export async function registerUser(telegramId: number, username: string): Promis
 
 export function saveUserState(telegramId: number, gameState: Omit<GameState, "isLoading" | "floatingBonus" | "leaderboard" | "offlineReport" | "activeView">): void {
     if (!telegramId) return;
-
     const url = `${API_BASE_URL}/users/${telegramId}/state`;
     const data = JSON.stringify({ gameState });
-
     fetch(url, {
         method: 'POST',
         body: data,
-        headers: {
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         keepalive: true
-    }).catch(error => {
-        console.error('Failed to save game state:', error);
-    });
+    }).catch(console.error);
 }
 
 export async function fetchLeaderboard(): Promise<any> {
@@ -91,5 +85,34 @@ export async function attackRaidBoss(raidId: number, userId: number): Promise<an
     return fetchApi(`/clans/raid/${raidId}/attack`, {
         method: 'POST',
         headers: { 'x-user-id': String(userId) }
+    });
+}
+
+export async function submitClanApplication(clanId: number, userId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/apply`, {
+        method: 'POST',
+        headers: { 'x-user-id': String(userId) }
+    });
+}
+
+export async function approveClanApplication(clanId: number, userIdToApprove: string, approverId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/applications/${userIdToApprove}/approve`, {
+        method: 'POST',
+        headers: { 'x-user-id': String(approverId) }
+    });
+}
+
+export async function rejectClanApplication(clanId: number, userIdToReject: string, rejectorId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/applications/${userIdToReject}/reject`, {
+        method: 'POST',
+        headers: { 'x-user-id': String(rejectorId) }
+    });
+}
+
+export async function changeClanRole(clanId: number, userIdToChange: string, newRoleId: string, changerId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/roles/${userIdToChange}`, {
+        method: 'POST',
+        headers: { 'x-user-id': String(changerId) },
+        body: JSON.stringify({ new_role_id: newRoleId })
     });
 }
