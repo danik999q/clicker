@@ -73,7 +73,9 @@ export const GameService = {
 
         setInterval(() => {
             updateState(state => {
-                if (!state.floatingBonus.isActive && Math.random() < 0.5) {
+                if (state.isLoading || state.floatingBonus.isActive) return state;
+
+                if (Math.random() < 0.7) {
                     const rand = Math.random();
                     let type: FloatingBonusType;
                     if (rand < 0.15) {

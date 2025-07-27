@@ -3,13 +3,27 @@
     import { GameService } from '$lib/gameService';
     import Header from '$lib/components/ui/Header.svelte';
     import ActiveBoosts from '../features/game/ActiveBoosts.svelte';
+    import FloatingBonus from '../features/game/FloatingBonus.svelte';
+    import FloatingNumber from '../features/game/FloatingNumber.svelte';
+    import { calculateClickValue } from '$lib/gameLogic';
 
     $: activeMeme = $gameStore.memes[$gameStore.activeMemeIndex];
 
     let isClicked = false;
+    let floatingNumbers: { id: number; amount: number; x: number; y: number }[] = [];
 
-    function handleClick() {
+    function handleClick(event: MouseEvent) {
+        const viewsEarned = calculateClickValue($gameStore);
         GameService.addViews();
+
+        const newNumber = {
+            id: Date.now() + Math.random(),
+            amount: viewsEarned,
+            x: event.clientX,
+            y: event.clientY
+        };
+        floatingNumbers = [...floatingNumbers, newNumber];
+
         isClicked = true;
         setTimeout(() => {
             isClicked = false;
@@ -20,8 +34,9 @@
 <div class="clicker-view">
     <Header />
     <ActiveBoosts />
+
     <div class="meme-container">
-        <button class="meme-button" on:click={handleClick}>
+        <button class="meme-button" on:mousedown={handleClick}>
             <img
                     src={activeMeme.imageUrl}
                     alt={activeMeme.name}
@@ -31,6 +46,21 @@
         </button>
         <h2 class="meme-name">{activeMeme.name}</h2>
     </div>
+
+    {#each floatingNumbers as number (number.id)}
+        <FloatingNumber
+                amount={number.amount}
+                x={number.x}
+                y={number.y}
+                on:destroy={() => (floatingNumbers = floatingNumbers.filter((n) => n.id !== number.id))}
+        />
+    {/each}
+
+    {#if $gameStore.floatingBonus.isActive}
+        <div style="position: absolute; left: {$gameStore.floatingBonus.x}%; top: {$gameStore.floatingBonus.y}%; transform: translate(-50%, -50%);">
+            <FloatingBonus type={$gameStore.floatingBonus.type} />
+        </div>
+    {/if}
 </div>
 
 <style>
