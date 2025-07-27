@@ -3,7 +3,7 @@ import { browser } from '$app/environment';
 import * as api from './api';
 import * as constants from './constants';
 import { calculatePassiveIncome } from './gameLogic';
-import type { GameState, LeaderboardEntry, UpgradeDefinition, UpgradeTreeState } from './types';
+import type { GameState, LeaderboardEntry, Meme, UpgradeDefinition, UpgradeTreeState } from './types';
 
 function initializeUpgradeTrees(): GameState['upgradeTrees'] {
     const trees: GameState['upgradeTrees'] = {};
@@ -36,11 +36,7 @@ const defaultState: GameState = {
     referralSystem: { userId: null, referredCount: 0, earnings: 0 },
     walletAddress: null,
     isWalletConnected: false,
-    memes: [
-        { id: 'crocodilo', name: 'Crocodilo Bombordiro', level: 1, isUnlocked: true, unlockCost: 0, baseViews: 1, passiveViews: 0.2, upgradeCost: 20, imageUrl: '/images/crocodilo.jpeg' },
-        { id: 'sahur', name: 'Tung Tung Sahur', level: 1, isUnlocked: false, unlockCost: 1000, baseViews: 10, passiveViews: 1.5, upgradeCost: 250, imageUrl: '/images/sahur.jpeg' },
-        { id: 'skibidi', name: 'Skibidi Toilet', level: 1, isUnlocked: false, unlockCost: 12000, baseViews: 50, passiveViews: 8, upgradeCost: 3000, imageUrl: '/images/skibidi.jpeg' }
-    ],
+    memes: JSON.parse(JSON.stringify(constants.INITIAL_MEMES)),
     upgradeTrees: initializeUpgradeTrees(),
     metaUpgrades: constants.META_UPGRADE_DEFINITIONS.map(def => ({ id: def.id, isPurchased: false })),
     achievementsProgress: { views_1: false, clicks_1: false, unlock_1: false, },
@@ -100,9 +96,20 @@ const createGameStore = () => {
                 const serverState = await api.loadUserState(telegramId);
                 const clanInfo = await api.fetchUserClan(telegramId);
 
+                const savedMemesMap = new Map(serverState.memes?.map((m: Meme) => [m.id, m]));
+
+                const hydratedMemes = constants.INITIAL_MEMES.map(initialMeme => {
+                    const savedMeme = savedMemesMap.get(initialMeme.id);
+                    if (savedMeme) {
+                        return { ...initialMeme, ...savedMeme };
+                    }
+                    return initialMeme;
+                });
+
                 const hydratedState: GameState = {
                     ...defaultState,
                     ...serverState,
+                    memes: hydratedMemes,
                     clan: clanInfo,
                     upgradeTrees: { ...initializeUpgradeTrees(), ...(serverState.upgradeTrees || {}) },
                     telegramId,

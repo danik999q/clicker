@@ -1,4 +1,40 @@
-import type { AchievementDefinition, DailyQuestDefinition, MetaUpgradeDefinition, UpgradeDefinition } from './types';
+import type { AchievementDefinition, DailyQuestDefinition, Meme, MetaUpgradeDefinition, UpgradeDefinition } from './types';
+
+export const INITIAL_MEMES: Meme[] = [
+    {
+        id: 'crocodilo',
+        name: 'Crocodilo Bombordiro',
+        level: 1,
+        isUnlocked: true,
+        unlockCost: 0,
+        baseViews: 1,
+        passiveViews: 0.2,
+        upgradeCost: 20,
+        imageUrl: 'https://crbuojbmznqkowvmzrdz.supabase.co/storage/v1/object/public/memes/crocodilo.jpeg'
+    },
+    {
+        id: 'sahur',
+        name: 'Tung Tung Sahur',
+        level: 1,
+        isUnlocked: false,
+        unlockCost: 1000,
+        baseViews: 10,
+        passiveViews: 1.5,
+        upgradeCost: 250,
+        imageUrl: 'https://crbuojbmznqkowvmzrdz.supabase.co/storage/v1/object/public/memes/crocodilo.jpeg'
+    },
+    {
+        id: 'skibidi',
+        name: 'Skibidi Toilet',
+        level: 1,
+        isUnlocked: false,
+        unlockCost: 12000,
+        baseViews: 50,
+        passiveViews: 8,
+        upgradeCost: 3000,
+        imageUrl: 'https://crbuojbmznqkowvmzrdz.supabase.co/storage/v1/object/public/memes/crocodilo.jpeg'
+    }
+];
 
 export const UPGRADE_COST_RATIO = 1.12;
 export const UPGRADE_NODE_COST_RATIO = 1.8;
