@@ -229,6 +229,29 @@ export const GameService = {
         }
     },
 
+    claimRaidReward: async () => {
+        const state = get(gameStore);
+        if (!state.raid || !state.telegramId) return;
+        try {
+            const response = await api.claimRaidReward(state.raid.id, state.telegramId);
+            alert(response.message);
+            await gameStore.loadStateFromServer(state.telegramId);
+        } catch (error: any) {
+            alert(error.message);
+        }
+    },
+
+    startRaid: async () => {
+        const state = get(gameStore);
+        if (!state.clan || !state.telegramId) return;
+        try {
+            await api.startRaid(state.clan.id, state.telegramId);
+            await gameStore.loadStateFromServer(state.telegramId);
+        } catch (error: any) {
+            alert(error.message);
+        }
+    },
+
     submitClanApplication: async (clanId: number) => {
         const state = get(gameStore);
         if (!state.telegramId) return;

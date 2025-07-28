@@ -89,6 +89,20 @@ export async function attackRaidBoss(raidId: number, userId: number): Promise<an
     });
 }
 
+export async function claimRaidReward(raidId: number, userId: number): Promise<any> {
+    return fetchApi(`/clans/raid/${raidId}/claim-reward`, {
+        method: 'POST',
+        headers: { 'x-user-id': String(userId) }
+    });
+}
+
+export async function startRaid(clanId: number, userId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/start-raid`, {
+        method: 'POST',
+        headers: { 'x-user-id': String(userId) }
+    });
+}
+
 export async function submitClanApplication(clanId: number, userId: number): Promise<any> {
     return fetchApi(`/clans/${clanId}/apply`, {
         method: 'POST',

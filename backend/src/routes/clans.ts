@@ -267,13 +267,102 @@ router.post('/raid/:id/attack', async (req: Request, res: Response) => {
         }
 
         await client.query(`
-            INSERT INTO raid_participants (raid_id, user_id, damage_dealt) VALUES ($1, $2, $3)
-            ON CONFLICT (raid_id, user_id) DO UPDATE SET damage_dealt = raid_participants.damage_dealt + $3;`,
+                    INSERT INTO raid_participants (raid_id, user_id, damage_dealt) VALUES ($1, $2, $3)
+                        ON CONFLICT (raid_id, user_id) DO UPDATE SET damage_dealt = raid_participants.damage_dealt + $3;`,
             [raidId, userId, damage]
         );
 
         await client.query('COMMIT');
         res.status(200).json({ newBossHealth: raidUpdateResult.rows[0].boss_health });
+    } catch (err: any) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+});
+
+router.post('/raid/:id/claim-reward', async (req: Request, res: Response) => {
+    const { id: raidId } = req.params;
+    const userId = (req as any).userId;
+    if (!userId) return res.status(401).json({ error: 'Не авторизован' });
+
+    const client = await db.getClient();
+    try {
+        await client.query('BEGIN');
+
+        const raidResult = await client.query('SELECT boss_health, end_date FROM raids WHERE id = $1', [raidId]);
+        if (raidResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Рейд не найден' });
+        }
+        const raid = raidResult.rows[0];
+        const isRaidOver = Number(raid.boss_health) <= 0 || new Date() > new Date(raid.end_date);
+        if (!isRaidOver) {
+            return res.status(400).json({ error: 'Рейд еще не завершен' });
+        }
+
+        const participantResult = await client.query('SELECT damage_dealt, reward_claimed FROM raid_participants WHERE raid_id = $1 AND user_id = $2', [raidId, userId]);
+        if (participantResult.rows.length === 0) {
+            return res.status(400).json({ error: 'Вы не участвовали в этом рейде' });
+        }
+        const participant = participantResult.rows[0];
+        if (participant.reward_claimed) {
+            return res.status(400).json({ error: 'Награда уже получена' });
+        }
+
+        const damage = Number(participant.damage_dealt);
+        const reward = Math.floor(damage / 1_000_000);
+        if (reward <= 0) {
+            return res.status(400).json({ error: 'Вы нанесли недостаточно урона для получения награды' });
+        }
+
+        await client.query('UPDATE raid_participants SET reward_claimed = TRUE WHERE raid_id = $1 AND user_id = $2', [raidId, userId]);
+
+        const userResult = await client.query<{ game_state: GameState }>('SELECT game_state FROM users WHERE telegram_id = $1 FOR UPDATE', [userId]);
+        const userState = userResult.rows[0].game_state;
+        userState.prestigePoints = (userState.prestigePoints || 0) + reward;
+        await client.query('UPDATE users SET game_state = $1 WHERE telegram_id = $2', [userState, userId]);
+
+        await client.query('COMMIT');
+        res.status(200).json({ message: `Вы получили ${reward} очков престижа!`, reward });
+
+    } catch (err: any) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+});
+
+router.post('/:id/start-raid', canManageClan, async (req: Request, res: Response) => {
+    const { id: clanId } = req.params;
+    const client = await db.getClient();
+    try {
+        await client.query('BEGIN');
+
+        const activeRaidResult = await client.query(
+            'SELECT id FROM raids WHERE clan_id = $1 AND end_date > NOW() AND boss_health > 0',
+            [clanId]
+        );
+        if (activeRaidResult.rows.length > 0) {
+            return res.status(400).json({ error: 'В клане уже есть активный рейд' });
+        }
+
+        const membersResult = await client.query('SELECT game_state FROM users WHERE clan_id = $1', [clanId]);
+        const totalClanClickPower = membersResult.rows
+            .reduce((sum, row) => sum + calculateClickValue(row.game_state), 0);
+
+        const bossHealth = totalClanClickPower * 60 * 5;
+        const startDate = new Date();
+        const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+
+        const newRaidResult = await client.query(
+            'INSERT INTO raids (clan_id, boss_health, max_health, start_date, end_date) VALUES ($1, $2, $2, $3, $4) RETURNING *',
+            [clanId, bossHealth, startDate, endDate]
+        );
+
+        await client.query('COMMIT');
+        res.status(201).json(newRaidResult.rows[0]);
     } catch (err: any) {
         await client.query('ROLLBACK');
         res.status(500).json({ error: err.message });
