@@ -28,6 +28,26 @@ const canManageClan = async (req: Request, res: Response, next: NextFunction) =>
     }
 };
 
+router.get('/leaderboard', async (req: Request, res: Response) => {
+    try {
+        const result = await db.query(`
+            SELECT
+                c.id,
+                c.name,
+                COUNT(u.telegram_id) as "memberCount",
+                COALESCE(SUM((u.game_state->>'totalViews')::numeric), 0) as "totalViews"
+            FROM clans c
+            LEFT JOIN users u ON c.id = u.clan_id
+            GROUP BY c.id, c.name
+            ORDER BY "totalViews" DESC
+            LIMIT 20;
+        `);
+        res.json(result.rows);
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 router.post('/', async (req: Request, res: Response) => {
     const { name } = req.body;
     const leader_id = (req as any).userId;

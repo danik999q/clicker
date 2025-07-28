@@ -1,10 +1,12 @@
-<script>
+<script lang="ts">
     import { onMount } from 'svelte';
-    import { gameStore } from '$lib/store.ts';
-    import { formatNumber } from '$lib/utils.ts';
+    import { gameStore } from '$lib/store';
+    import { formatNumber } from '$lib/utils';
 
     onMount(() => {
-        gameStore.fetchLeaderboard();
+        if ($gameStore.leaderboard.data.length === 0) {
+            gameStore.fetchLeaderboard();
+        }
     });
 </script>
 

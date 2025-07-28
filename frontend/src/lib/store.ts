@@ -68,7 +68,7 @@ const createGameStore = () => {
             return state;
         });
     };
-
+    
     if (browser) {
         setInterval(() => {
             update(state => {
@@ -80,7 +80,7 @@ const createGameStore = () => {
                 return state;
             });
         }, 1000);
-
+        
         setInterval(saveState, constants.SAVE_INTERVAL_MS);
         window.addEventListener('beforeunload', saveState);
     }
@@ -105,7 +105,7 @@ const createGameStore = () => {
                     }
                     return initialMeme;
                 });
-
+                
                 const hydratedState: GameState = {
                     ...defaultState,
                     ...serverState,
@@ -128,13 +128,24 @@ const createGameStore = () => {
                 }
             }
         },
-
+        
+        fetchLeaderboard: async () => {
+            update(state => ({ ...state, leaderboard: { ...state.leaderboard, isLoading: true } }));
+            try {
+                const data = await api.fetchLeaderboard();
+                update(state => ({ ...state, leaderboard: { isLoading: false, data: data || [] } }));
+            } catch (error) {
+                console.error("Failed to fetch leaderboard:", error);
+                update(state => ({ ...state, leaderboard: { ...state.leaderboard, isLoading: false } }));
+            }
+        },
+        
         clearOfflineReport: () => update(state => ({ ...state, offlineReport: null })),
 
         setView: (view: GameState['activeView']) => update(s => ({ ...s, activeView: view })),
-
+        
         setBuyMultiplier: (multiplier: number) => update(s => ({ ...s, buyMultiplier: multiplier })),
-
+        
         setActiveMeme: (index: number) => update(s => {
             if (s.memes[index]?.isUnlocked) {
                 s.activeMemeIndex = index;

@@ -44,7 +44,7 @@
             newClanName = '';
         }
     }
-
+    
     function handleRoleChange(event: Event, memberId: string) {
         const target = event.currentTarget as HTMLSelectElement;
         GameService.changeClanRole(memberId, target.value);
@@ -64,7 +64,7 @@
             <button class:active={activeTab === 'myClan'} on:click={() => activeTab = 'myClan'}>Мой клан</button>
             {#if canManage}
                 <button class:active={activeTab === 'applications'} on:click={() => activeTab = 'applications'}>
-                    Заявки {#if $gameStore.clan.applications.length > 0}<span class="app-counter">{$gameStore.clan.applications.length}</span>{/if}
+                    Заявки {#if $gameStore.clan.applications?.length > 0}<span class="app-counter">{$gameStore.clan.applications.length}</span>{/if}
                 </button>
             {/if}
             <button class:active={activeTab === 'raid'} on:click={() => activeTab = 'raid'}>Рейды</button>
@@ -93,7 +93,7 @@
                     {#each $gameStore.clan.members as member (member.telegram_id)}
                         <li class="member-item">
                             <span class="member-name">{member.username || `User ${member.telegram_id}`}</span>
-                            {#if canManage && currentUserTelegramId !== String(member.telegram_id)}
+                             {#if canManage && currentUserTelegramId !== String(member.telegram_id)}
                                 <select class="role-select" on:change={(e) => handleRoleChange(e, member.telegram_id)}>
                                     {#each clanRoles as role}
                                         <option value={role.id} selected={member.roleId === role.id}>{role.name}</option>
@@ -109,7 +109,7 @@
                 <button class="leave-button" on:click={GameService.leaveClan}>Покинуть клан</button>
             </div>
         {:else if activeTab === 'applications' && $gameStore.clan && canManage}
-            <div class="applications-view">
+             <div class="applications-view">
                 <div class="list-header">Заявки на вступление</div>
                 {#if $gameStore.clan.applications && $gameStore.clan.applications.length > 0}
                     <ul class="application-list">
@@ -169,7 +169,6 @@
         {/if}
     </div>
 </div>
-
 <style>
     .view-container { padding: 1rem; display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; }
     .sub-tabs { display: flex; gap: 0.5rem; background-color: var(--surface-color); padding: 0.25rem; border-radius: 8px; margin-bottom: 1rem; flex-shrink: 0; }

@@ -12,7 +12,8 @@
     $: referralLink = $gameStore.telegramId ?
         `https://t.me/viralmanagerbot?start=${$gameStore.telegramId}` : 'Загрузка ссылки...';
     $: shareText = 'Залетай в Brainrot Manager и помоги мне захватить интернет! 🧠\n\n';
-    $: shareUrl = $gameStore.telegramId ? `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}` : '#';
+    $: shareUrl = $gameStore.telegramId ?
+        `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}` : '#';
 
     function copyLink() {
         if (!$gameStore.telegramId) return;
@@ -112,14 +113,6 @@
     .referral-content {
         display: contents;
     }
-    .view-container {
-        width: 100%;
-        padding: 1.5rem;
-        box-sizing: border-box;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-    }
     h2 {
         margin-top: 0;
     }
@@ -159,9 +152,6 @@
         opacity: 0.5;
         cursor: not-allowed;
     }
-    .copy-button:hover:not(:disabled) {
-        background-color: #6ee7b7;
-    }
     .share-button {
         display: flex;
         align-items: center;
@@ -177,15 +167,10 @@
         margin-bottom: 2rem;
         transition: background-color 0.2s ease, opacity 0.2s ease;
     }
-    .share-button:hover {
-        background-color: #1da8e0;
-    }
     .share-button.disabled {
         opacity: 0.5;
         pointer-events: none;
-        cursor: not-allowed;
     }
-
     .stats-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
