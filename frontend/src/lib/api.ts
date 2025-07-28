@@ -116,3 +116,19 @@ export async function changeClanRole(clanId: number, userIdToChange: string, new
         body: JSON.stringify({ new_role_id: newRoleId })
     });
 }
+
+export async function updateClanDescription(clanId: number, description: string, editorId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/description`, {
+        method: 'POST',
+        headers: { 'x-user-id': String(editorId) },
+        body: JSON.stringify({ description })
+    });
+}
+
+export async function updateClanAvatar(clanId: number, avatarUrl: string, editorId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/avatar`, {
+        method: 'POST',
+        headers: { 'x-user-id': String(editorId) },
+        body: JSON.stringify({ avatar_url: avatarUrl })
+    });
+}

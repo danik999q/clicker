@@ -45,7 +45,6 @@
         }
     }
 
-    // ИСПРАВЛЕНО: Выносим логику в отдельную функцию
     function handleRoleChange(event: Event, memberId: string) {
         const target = event.currentTarget as HTMLSelectElement;
         GameService.changeClanRole(memberId, target.value);
