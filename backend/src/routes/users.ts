@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import db from '../db';
-import { calculatePassiveIncome, calculateBasePassiveIncome } from '../gameLogic';
+import { calculatePassiveIncome } from '../gameLogic';
 import { GameState } from '../types';
 
 const router = Router();
@@ -10,50 +10,19 @@ router.post('/register', async (req: Request, res: Response) => {
     if (!telegram_id) {
         return res.status(400).json({ error: 'telegram_id is required' });
     }
-
-    const client = await db.getClient();
     try {
-        await client.query('BEGIN');
-
         const initialGameState: Partial<GameState> = {
             totalViews: 0,
             memes: []
         };
-        await client.query(
+        await db.query(
             `INSERT INTO users (telegram_id, username, referrer_id, game_state) VALUES ($1, $2, $3, $4) ON CONFLICT (telegram_id) DO NOTHING`,
             [telegram_id, username, referrer_id, JSON.stringify(initialGameState)]
         );
-
-        if (referrer_id && referrer_id !== telegram_id) {
-            const referrerResult = await client.query<{ game_state: GameState }>(`SELECT game_state FROM users WHERE telegram_id = $1 FOR UPDATE`, [referrer_id]);
-            const referrerRow = referrerResult.rows[0];
-
-            if (referrerRow?.game_state) {
-                let referrerState = referrerRow.game_state;
-                
-                if (!referrerState.referralSystem) {
-                    referrerState.referralSystem = { userId: referrer_id, referredCount: 0, earnings: 0 };
-                }
-                referrerState.referralSystem.referredCount = (referrerState.referralSystem.referredCount || 0) + 1;
-
-                const baseVps = calculateBasePassiveIncome(referrerState);
-                const reward = baseVps * 3600; // Награда за 1 час базового пассивного дохода
-
-                referrerState.referralSystem.earnings = (referrerState.referralSystem.earnings || 0) + reward;
-                referrerState.totalViews = (referrerState.totalViews || 0) + reward;
-
-                await client.query(`UPDATE users SET game_state = $1 WHERE telegram_id = $2`, [referrerState, referrer_id]);
-            }
-        }
-        
-        await client.query('COMMIT');
         res.status(201).json({ message: 'User registered successfully' });
     } catch (err: any) {
-        await client.query('ROLLBACK');
         console.error("Database error on register:", err.message);
         return res.status(500).json({ error: err.message });
-    } finally {
-        client.release();
     }
 });
 
@@ -69,14 +38,14 @@ router.get('/:telegram_id/state', async (req: Request, res: Response) => {
         const row = result.rows[0];
 
         if (!row) {
-             return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({ error: 'User not found' });
         }
-        
+
         let gameState = row.game_state || { totalViews: 0, memes: [] };
         const lastSeen = row.last_seen ? new Date(row.last_seen).getTime() : Date.now();
         const timeDiff = Math.floor((Date.now() - lastSeen) / 1000);
         const effectiveOfflineTime = Math.min(timeDiff, MAX_OFFLINE_EARNINGS_S);
-        
+
         if (effectiveOfflineTime > 10) {
             const offlineVps = calculatePassiveIncome(gameState);
             const viewsEarned = Math.floor(offlineVps * effectiveOfflineTime);
@@ -103,7 +72,7 @@ router.post('/:telegram_id/state', async (req: Request, res: Response) => {
     if (!clientState) {
         return res.status(400).json({ error: 'gameState is required' });
     }
-    
+
     delete clientState.offlineReport;
 
     try {
@@ -141,16 +110,25 @@ router.get('/:telegram_id/clan', async (req: Request, res: Response) => {
             return res.json(null);
         }
 
-        const clanResult = await db.query('SELECT * FROM clans WHERE id = $1', [user.clan_id]);
-        const clan = clanResult.rows[0];
-         if (!clan) {
+        const clanId = user.clan_id;
+        const clanResult = await db.query('SELECT * FROM clans WHERE id = $1', [clanId]);
+
+        if (clanResult.rows.length === 0) {
             return res.json(null);
         }
+        const clan = clanResult.rows[0];
 
         const membersResult = await db.query(`
             SELECT telegram_id, username, (game_state->>'totalViews')::numeric as "totalViews", clan_role_id
             FROM users WHERE clan_id = $1 ORDER BY "totalViews" DESC
-        `, [user.clan_id]);
+        `, [clanId]);
+
+        const appsResult = await db.query(`
+            SELECT a.user_id, a.status, a.created_at, u.username
+            FROM clan_applications a JOIN users u ON a.user_id = u.telegram_id
+            WHERE a.clan_id = $1 AND a.status = 'pending'
+            ORDER BY a.created_at ASC
+        `, [clanId]);
 
         clan.members = membersResult.rows.map(m => ({
             telegram_id: m.telegram_id,
@@ -158,11 +136,18 @@ router.get('/:telegram_id/clan', async (req: Request, res: Response) => {
             totalViews: m.totalViews,
             roleId: m.clan_role_id || 'member'
         }));
-        
+
+        clan.applications = appsResult.rows.map(a => ({
+            user: { telegram_id: a.user_id, username: a.username },
+            date: a.created_at,
+            status: a.status
+        }));
+
         clan.totalViews = clan.members.reduce((sum: number, member: any) => sum + (Number(member.totalViews) || 0), 0);
-        
+
         res.json(clan);
     } catch (err: any) {
+        console.error(`Error fetching clan data for user ${telegram_id}:`, err);
         res.status(500).json({ error: err.message });
     }
 });

@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 import { browser } from '$app/environment';
 import * as api from './api';
 import * as constants from './constants';
@@ -68,7 +68,7 @@ const createGameStore = () => {
             return state;
         });
     };
-    
+
     if (browser) {
         setInterval(() => {
             update(state => {
@@ -80,7 +80,7 @@ const createGameStore = () => {
                 return state;
             });
         }, 1000);
-        
+
         setInterval(saveState, constants.SAVE_INTERVAL_MS);
         window.addEventListener('beforeunload', saveState);
     }
@@ -105,30 +105,33 @@ const createGameStore = () => {
                     }
                     return initialMeme;
                 });
-                
-                const hydratedState: GameState = {
-                    ...defaultState,
-                    ...serverState,
-                    memes: hydratedMemes,
-                    clan: clanInfo,
-                    upgradeTrees: { ...initializeUpgradeTrees(), ...(serverState.upgradeTrees || {}) },
-                    telegramId,
-                    isLoading: false,
-                    offlineReport: serverState.offlineReport || null,
-                    isWalletConnected: !!serverState.walletAddress,
-                };
-                set(hydratedState);
+
+                update(currentState => {
+                    return {
+                        ...currentState,
+                        ...serverState,
+                        memes: hydratedMemes,
+                        clan: clanInfo,
+                        upgradeTrees: { ...initializeUpgradeTrees(), ...(serverState.upgradeTrees || {}) },
+                        telegramId,
+                        isLoading: false,
+                        offlineReport: serverState.offlineReport || null,
+                        isWalletConnected: !!serverState.walletAddress,
+                    };
+                });
+
             } catch (error) {
                 console.error("Failed to load state:", error);
+                const currentState = get(gameStore);
                 if ((error as any).status === 404) {
                     await api.registerUser(telegramId, `user_${telegramId}`);
-                    set({ ...defaultState, telegramId, isLoading: false });
+                    set({ ...defaultState, telegramId, isLoading: false, activeView: currentState.activeView });
                 } else {
                     update(s => ({ ...s, isLoading: false }));
                 }
             }
         },
-        
+
         fetchLeaderboard: async () => {
             update(state => ({ ...state, leaderboard: { ...state.leaderboard, isLoading: true } }));
             try {
@@ -139,13 +142,13 @@ const createGameStore = () => {
                 update(state => ({ ...state, leaderboard: { ...state.leaderboard, isLoading: false } }));
             }
         },
-        
+
         clearOfflineReport: () => update(state => ({ ...state, offlineReport: null })),
 
         setView: (view: GameState['activeView']) => update(s => ({ ...s, activeView: view })),
-        
+
         setBuyMultiplier: (multiplier: number) => update(s => ({ ...s, buyMultiplier: multiplier })),
-        
+
         setActiveMeme: (index: number) => update(s => {
             if (s.memes[index]?.isUnlocked) {
                 s.activeMemeIndex = index;

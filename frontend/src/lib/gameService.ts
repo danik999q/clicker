@@ -195,8 +195,8 @@ export const GameService = {
         try {
             await api.createClan(name, state.telegramId);
             await gameStore.loadStateFromServer(state.telegramId);
-        } catch (error) {
-            console.error("Failed to create clan:", error);
+        } catch (error: any) {
+            alert(error.message);
         }
     },
 
@@ -206,8 +206,8 @@ export const GameService = {
         try {
             await api.leaveClan(state.telegramId, state.clan.id);
             updateState(s => ({ ...s, clan: null, raid: null }));
-        } catch (error) {
-            console.error("Failed to leave clan:", error);
+        } catch (error: any) {
+            alert(error.message);
         }
     },
 
@@ -224,8 +224,8 @@ export const GameService = {
                     return s;
                 });
             }
-        } catch (error) {
-            console.error("Failed to attack raid boss:", error);
+        } catch (error: any) {
+            alert(error.message);
         }
     },
 
@@ -233,9 +233,11 @@ export const GameService = {
         const state = get(gameStore);
         if (!state.telegramId) return;
         try {
-            await api.submitClanApplication(clanId, state.telegramId);
-        } catch (error) {
+            const response = await api.submitClanApplication(clanId, state.telegramId);
+            alert(response.message || 'Заявка успешно подана!');
+        } catch (error: any) {
             console.error("Failed to submit clan application:", error);
+            alert(`Ошибка: ${error.message}`);
         }
     },
 
@@ -245,8 +247,8 @@ export const GameService = {
         try {
             await api.approveClanApplication(state.clan.id, userId, state.telegramId);
             await gameStore.loadStateFromServer(state.telegramId);
-        } catch (error) {
-            console.error("Failed to approve clan application:", error);
+        } catch (error: any) {
+            alert(error.message);
         }
     },
 
@@ -256,8 +258,8 @@ export const GameService = {
         try {
             await api.rejectClanApplication(state.clan.id, userId, state.telegramId);
             await gameStore.loadStateFromServer(state.telegramId);
-        } catch (error) {
-            console.error("Failed to reject clan application:", error);
+        } catch (error: any) {
+            alert(error.message);
         }
     },
 
@@ -267,8 +269,19 @@ export const GameService = {
         try {
             await api.changeClanRole(state.clan.id, userId, newRoleId, state.telegramId);
             await gameStore.loadStateFromServer(state.telegramId);
-        } catch (error) {
-            console.error("Failed to change clan role:", error);
+        } catch (error: any) {
+            alert(error.message);
+        }
+    },
+
+    transferClanLeadership: async (newLeaderId: string) => {
+        const state = get(gameStore);
+        if (!state.clan || !state.telegramId) return;
+        try {
+            await api.transferClanLeadership(state.clan.id, newLeaderId, state.telegramId);
+            await gameStore.loadStateFromServer(state.telegramId);
+        } catch (error: any) {
+            alert(error.message);
         }
     },
 };

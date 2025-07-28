@@ -4,13 +4,15 @@
     import { GameService } from '$lib/gameService';
     import * as api from '$lib/api';
     import { formatNumber } from '$lib/utils';
-    import type { ClanLeaderboardEntry, ClanRole } from '$lib/types';
+    import type { ClanLeaderboardEntry, ClanRole, ClanMember } from '$lib/types';
     import RaidView from './RaidView.svelte';
 
     let activeTab: 'myClan' | 'applications' | 'raid' | 'leaderboard' = 'myClan';
     let newClanName = '';
     let leaderboard: ClanLeaderboardEntry[] = [];
     let isLoadingLeaderboard = true;
+    let memberToPromote: ClanMember | null = null;
+
 
     const DEFAULT_CLAN_ROLES: ClanRole[] = [
         { id: 'leader', name: 'Лидер', permissions: [] },
@@ -48,6 +50,13 @@
     function handleRoleChange(event: Event, memberId: string) {
         const target = event.currentTarget as HTMLSelectElement;
         GameService.changeClanRole(memberId, target.value);
+    }
+
+    function confirmLeadershipTransfer() {
+        if (memberToPromote) {
+            GameService.transferClanLeadership(memberToPromote.telegram_id);
+            memberToPromote = null;
+        }
     }
 
     $: currentUserTelegramId = $gameStore.telegramId ? String($gameStore.telegramId) : null;
@@ -96,13 +105,18 @@
                              {#if canManage && currentUserTelegramId !== String(member.telegram_id)}
                                 <select class="role-select" on:change={(e) => handleRoleChange(e, member.telegram_id)}>
                                     {#each clanRoles as role}
-                                        <option value={role.id} selected={member.roleId === role.id}>{role.name}</option>
+                                        {#if isLeader || role.id !== 'leader'}
+                                            <option value={role.id} selected={member.roleId === role.id}>{role.name}</option>
+                                        {/if}
                                     {/each}
                                 </select>
                             {:else}
                                 <span class="member-role">{(clanRoles.find(r => r.id === member.roleId)?.name) || 'Участник'}</span>
                             {/if}
                             <span class="member-score">{formatNumber(member.totalViews)}</span>
+                            {#if isLeader && currentUserTelegramId !== String(member.telegram_id)}
+                                <button class="leader-btn" on:click={() => memberToPromote = member}>👑</button>
+                            {/if}
                         </li>
                     {/each}
                 </ul>
@@ -169,11 +183,24 @@
         {/if}
     </div>
 </div>
+
+{#if memberToPromote}
+    <div class="modal-backdrop" on:click={() => memberToPromote = null}>
+        <div class="modal-content" on:click|stopPropagation>
+            <h3>Передать лидерство</h3>
+            <p>Вы уверены, что хотите сделать <strong>{memberToPromote.username}</strong> новым лидером клана? Это действие необратимо.</p>
+            <div class="modal-actions">
+                <button class="cancel-button" on:click={() => memberToPromote = null}>Отмена</button>
+                <button class="confirm-button" on:click={confirmLeadershipTransfer}>Передать</button>
+            </div>
+        </div>
+    </div>
+{/if}
+
 <style>
     .view-container { padding: 1rem; display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; }
     .sub-tabs { display: flex; gap: 0.5rem; background-color: var(--surface-color); padding: 0.25rem; border-radius: 8px; margin-bottom: 1rem; flex-shrink: 0; }
     .sub-tabs button { flex-grow: 1; background: none; border: none; color: var(--text-secondary); font-weight: 600; padding: 0.5rem; border-radius: 6px; cursor: pointer; transition: all 0.2s ease; position: relative; }
-    .sub-tabs button:disabled { opacity: 0.4; cursor: not-allowed; }
     .sub-tabs button.active { background-color: var(--primary-accent); color: #064e3b; }
     .app-counter { position: absolute; top: -5px; right: -5px; background-color: #ef4444; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; font-weight: bold; }
     .tab-content { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; }
@@ -185,12 +212,12 @@
     .stat-card .value { font-size: 1.2rem; font-weight: 700; }
     .list-header { font-weight: 700; margin: 1rem 0 0.5rem 0; font-size: 1.1rem; }
     .member-list, .application-list { list-style: none; padding: 0; margin: 0; }
-    .member-item, .application-item { display: flex; align-items: center; gap: 1rem; padding: 0.75rem 0.5rem; border-bottom: 1px solid var(--border-color); }
-    .member-item:last-child, .application-item:last-child { border-bottom: none; }
+    .member-item, .application-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 0.5rem; border-bottom: 1px solid var(--border-color); }
     .member-name, .applicant-name { font-weight: 500; flex-grow: 1; }
-    .member-role { font-size: 0.9rem; color: var(--text-secondary); margin-left: auto; }
+    .member-role { font-size: 0.9rem; color: var(--text-secondary); }
     .member-score { font-size: 1rem; font-weight: 600; min-width: 80px; text-align: right; }
-    .role-select { margin-left: auto; background-color: var(--surface-color); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 6px; padding: 0.25rem; }
+    .role-select { background-color: var(--surface-color); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 6px; padding: 0.25rem; }
+    .leader-btn { background: none; border: none; cursor: pointer; font-size: 1.2rem; padding: 0 0.5rem; }
     .application-actions { display: flex; gap: 0.5rem; margin-left: auto; }
     .action-btn { border: none; border-radius: 6px; padding: 0.5rem 1rem; font-weight: 600; cursor: pointer; color: white; }
     .action-btn.approve { background-color: #22c55e; }
@@ -199,7 +226,6 @@
     .placeholder { padding: 2rem; color: var(--text-secondary); text-align: center; }
     .clan-list { background-color: var(--surface-color); border-radius: 12px; border: 1px solid var(--border-color); overflow: hidden; }
     .clan-list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); }
-    .clan-list-item:last-child { border-bottom: none; }
     .rank-info { display: flex; align-items: center; gap: 1rem; text-align: left; }
     .rank { font-weight: 700; color: var(--text-secondary); font-size: 1.1rem; width: 2rem; }
     .clan-details { display: flex; flex-direction: column; }
@@ -209,4 +235,10 @@
     .create-clan-card { padding: 1rem; background-color: var(--surface-color); border-radius: 12px; margin-bottom: 1rem; }
     .create-clan { display: flex; gap: 0.5rem; }
     .create-clan input { flex-grow: 1; border-radius: 6px; border: 1px solid var(--border-color); padding: 0.5rem; }
+    .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-content { background-color: var(--surface-color); padding: 2rem; border-radius: 12px; border: 1px solid var(--border-color); width: 90%; max-width: 350px; text-align: center; }
+    .modal-actions { display: flex; gap: 1rem; margin-top: 1.5rem; }
+    .modal-actions button { flex-grow: 1; padding: 0.75rem; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; }
+    .cancel-button { background-color: #374151; color: white; }
+    .confirm-button { background-color: #22c55e; color: white; }
 </style>

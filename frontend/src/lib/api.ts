@@ -19,7 +19,8 @@ async function fetchApi(path: string, options: RequestInit = {}): Promise<any> {
     const response = await fetch(`${API_BASE_URL}${path}`, config);
 
     if (!response.ok) {
-        const error = new Error(`API Error: ${response.status}`) as any;
+        const errorBody = await response.json().catch(() => ({ error: 'Неизвестная ошибка API' }));
+        const error = new Error(errorBody.error || `API Error: ${response.status}`) as any;
         error.status = response.status;
         throw error;
     }
@@ -130,5 +131,13 @@ export async function updateClanAvatar(clanId: number, avatarUrl: string, editor
         method: 'POST',
         headers: { 'x-user-id': String(editorId) },
         body: JSON.stringify({ avatar_url: avatarUrl })
+    });
+}
+
+export async function transferClanLeadership(clanId: number, newLeaderId: string, currentLeaderId: number): Promise<any> {
+    return fetchApi(`/clans/${clanId}/transfer-leadership`, {
+        method: 'POST',
+        headers: { 'x-user-id': String(currentLeaderId) },
+        body: JSON.stringify({ newLeaderId })
     });
 }

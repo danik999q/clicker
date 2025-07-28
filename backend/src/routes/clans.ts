@@ -28,19 +28,31 @@ const canManageClan = async (req: Request, res: Response, next: NextFunction) =>
     }
 };
 
+const isLeader = async (req: Request, res: Response, next: NextFunction) => {
+    const clanId = req.params.id;
+    const userId = (req as any).userId;
+
+    if (!userId) return res.status(401).json({ error: "Не авторизован" });
+    if (!clanId) return res.status(400).json({ error: "ID клана не указан" });
+
+    try {
+        const { rows } = await db.query<{ clan_role_id: string }>('SELECT clan_role_id FROM users WHERE telegram_id = $1 AND clan_id = $2', [userId, clanId]);
+        if (rows[0]?.clan_role_id === 'leader') {
+            return next();
+        }
+        return res.status(403).json({ error: 'Только лидер может выполнить это действие' });
+    } catch (err: any) {
+        return res.status(500).json({ error: 'Ошибка сервера при проверке прав' });
+    }
+};
+
 router.get('/leaderboard', async (req: Request, res: Response) => {
     try {
         const result = await db.query(`
-            SELECT
-                c.id,
-                c.name,
-                COUNT(u.telegram_id) as "memberCount",
-                COALESCE(SUM((u.game_state->>'totalViews')::numeric), 0) as "totalViews"
-            FROM clans c
-            LEFT JOIN users u ON c.id = u.clan_id
-            GROUP BY c.id, c.name
-            ORDER BY "totalViews" DESC
-            LIMIT 20;
+            SELECT c.id, c.name, COUNT(u.telegram_id) as "memberCount",
+                   COALESCE(SUM((u.game_state->>'totalViews')::numeric), 0) as "totalViews"
+            FROM clans c LEFT JOIN users u ON c.id = u.clan_id
+            GROUP BY c.id, c.name ORDER BY "totalViews" DESC LIMIT 20;
         `);
         res.json(result.rows);
     } catch (err: any) {
@@ -57,7 +69,7 @@ router.post('/', async (req: Request, res: Response) => {
     if (name.trim().length < 3 || name.trim().length > 15) {
         return res.status(400).json({ error: 'Название клана должно быть от 3 до 15 символов' });
     }
-    
+
     const client = await db.getClient();
     try {
         await client.query('BEGIN');
@@ -77,6 +89,64 @@ router.post('/', async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Клан с таким именем уже существует или произошла ошибка' });
     } finally {
         client.release();
+    }
+});
+
+router.post('/:id/apply', async (req: Request, res: Response) => {
+    const { id: clanId } = req.params;
+    const userId = (req as any).userId;
+    if (!userId) return res.status(401).json({ error: 'Не авторизован' });
+
+    const client = await db.getClient();
+    try {
+        await client.query('BEGIN');
+        const userResult = await client.query<{ clan_id: number }>('SELECT clan_id FROM users WHERE telegram_id = $1', [userId]);
+        if (userResult.rows[0]?.clan_id) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Вы уже состоите в клане' });
+        }
+
+        const appResult = await client.query('SELECT id FROM clan_applications WHERE clan_id = $1 AND user_id = $2 AND status = $3', [clanId, userId, 'pending']);
+        if (appResult.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Заявка уже подана' });
+        }
+
+        await client.query('INSERT INTO clan_applications (clan_id, user_id) VALUES ($1, $2)', [clanId, userId]);
+        await client.query('COMMIT');
+        res.json({ message: 'Заявка подана' });
+    } catch (err: any) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+});
+
+router.post('/:id/applications/:userId/approve', canManageClan, async (req: Request, res: Response) => {
+    const { id: clanId, userId: userIdToApprove } = req.params;
+    const client = await db.getClient();
+    try {
+        await client.query('BEGIN');
+        await client.query(`UPDATE clan_applications SET status = 'approved' WHERE user_id = $1 AND clan_id = $2`, [userIdToApprove, clanId]);
+        await client.query(`UPDATE users SET clan_id = $1, clan_role_id = 'member' WHERE telegram_id = $2`, [clanId, userIdToApprove]);
+        await client.query('COMMIT');
+        res.status(200).json({ message: 'Заявка одобрена' });
+    } catch (err: any) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+});
+
+router.post('/:id/applications/:userId/reject', canManageClan, async (req: Request, res: Response) => {
+    const { id: clanId, userId: userIdToReject } = req.params;
+    try {
+        await db.query(`UPDATE clan_applications SET status = 'rejected' WHERE user_id = $1 AND clan_id = $2`, [userIdToReject, clanId]);
+        res.status(200).json({ message: 'Заявка отклонена' });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -111,7 +181,7 @@ router.post('/:id/leave', async (req: Request, res: Response) => {
             }
             await client.query('UPDATE users SET clan_id = NULL, clan_role_id = \'member\' WHERE telegram_id = $1', [userId]);
         }
-        
+
         await client.query('COMMIT');
         res.json({ message: 'Вы покинули клан' });
     } catch (err: any) {
@@ -119,6 +189,55 @@ router.post('/:id/leave', async (req: Request, res: Response) => {
         res.status(500).json({ error: err.message });
     } finally {
         client.release();
+    }
+});
+
+router.post('/:id/transfer-leadership', isLeader, async (req: Request, res: Response) => {
+    const { id: clanId } = req.params;
+    const currentLeaderId = (req as any).userId;
+    const { newLeaderId } = req.body;
+
+    if (!newLeaderId) {
+        return res.status(400).json({ error: 'Необходимо указать ID нового лидера' });
+    }
+    if (currentLeaderId === newLeaderId) {
+        return res.status(400).json({ error: 'Вы не можете передать лидерство самому себе' });
+    }
+
+    const client = await db.getClient();
+    try {
+        await client.query('BEGIN');
+        await client.query('UPDATE users SET clan_role_id = $1 WHERE telegram_id = $2 AND clan_id = $3', ['member', currentLeaderId, clanId]);
+        await client.query('UPDATE users SET clan_role_id = $1 WHERE telegram_id = $2 AND clan_id = $3', ['leader', newLeaderId, clanId]);
+        await client.query('UPDATE clans SET leader_id = $1 WHERE id = $2', [newLeaderId, clanId]);
+        await client.query('COMMIT');
+        res.status(200).json({ message: 'Лидерство успешно передано' });
+    } catch (err: any) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+});
+
+router.post('/:id/roles/:userId', canManageClan, async (req: Request, res: Response) => {
+    const { id: clanId, userId: userIdToChange } = req.params;
+    const { new_role_id } = req.body;
+    const changerId = (req as any).userId;
+
+    if (!new_role_id || (new_role_id !== 'officer' && new_role_id !== 'member')) {
+        return res.status(400).json({ error: 'Недопустимая роль' });
+    }
+
+    if (userIdToChange === changerId) {
+        return res.status(400).json({ error: 'Вы не можете изменить свою собственную роль' });
+    }
+
+    try {
+        await db.query('UPDATE users SET clan_role_id = $1 WHERE telegram_id = $2 AND clan_id = $3', [new_role_id, userIdToChange, clanId]);
+        res.status(200).json({ message: 'Роль участника обновлена' });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -132,16 +251,16 @@ router.post('/raid/:id/attack', async (req: Request, res: Response) => {
         await client.query('BEGIN');
         const userStateResult = await client.query<{ game_state: GameState }>('SELECT game_state FROM users WHERE telegram_id = $1', [userId]);
         if (userStateResult.rows.length === 0) {
-             await client.query('ROLLBACK');
-             return res.status(404).json({ error: 'User not found' });
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'User not found' });
         }
         const damage = calculateClickValue(userStateResult.rows[0].game_state);
 
         const raidUpdateResult = await client.query<{ boss_health: number }>(
-            'UPDATE raids SET boss_health = CASE WHEN boss_health - $1 < 0 THEN 0 ELSE boss_health - $1 END WHERE id = $2 AND is_active = TRUE RETURNING boss_health', 
+            'UPDATE raids SET boss_health = CASE WHEN boss_health - $1 < 0 THEN 0 ELSE boss_health - $1 END WHERE id = $2 AND is_active = TRUE RETURNING boss_health',
             [damage, raidId]
         );
-        
+
         if (raidUpdateResult.rowCount === 0) {
             await client.query('ROLLBACK');
             return res.status(400).json({ error: 'Рейд неактивен или не существует' });
@@ -152,7 +271,7 @@ router.post('/raid/:id/attack', async (req: Request, res: Response) => {
             ON CONFLICT (raid_id, user_id) DO UPDATE SET damage_dealt = raid_participants.damage_dealt + $3;`,
             [raidId, userId, damage]
         );
-        
+
         await client.query('COMMIT');
         res.status(200).json({ newBossHealth: raidUpdateResult.rows[0].boss_health });
     } catch (err: any) {
