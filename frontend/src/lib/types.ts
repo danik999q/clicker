@@ -113,7 +113,7 @@ export interface GameState {
     totalViews: number;
     totalClicks: number;
     activeMemeIndex: number;
-    activeView: 'clicker' | 'upgrades' | 'daily' | 'referrals' | 'account';
+    activeView: 'clicker' | 'upgrades' | 'tasks' | 'referrals' | 'account';
     buyMultiplier: number;
     lastSaveTime: number;
     offlineReport: OfflineReport | null;

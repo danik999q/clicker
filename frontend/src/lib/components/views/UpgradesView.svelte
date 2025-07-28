@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { META_UPGRADE_DEFINITIONS, ACHIEVEMENT_DEFINITIONS, PRESTIGE_THRESHOLD } from '$lib/constants';
+    import { META_UPGRADE_DEFINITIONS, PRESTIGE_THRESHOLD } from '$lib/constants';
     import { gameStore } from '$lib/store';
     import { GameService } from '$lib/gameService';
     import { formatNumber } from '$lib/utils';
@@ -7,7 +7,7 @@
     import UpgradeTree from '../features/upgrades/UpgradeTree.svelte';
     import PrestigeView from './PrestigeView.svelte';
 
-    let activeTab = 'memes';
+    let activeTab: 'memes' | 'global' | 'prestige' = 'memes';
 </script>
 
 <div class="view-container">
@@ -16,8 +16,6 @@
         <div class="tabs">
             <button class="tab-button" class:active={activeTab === 'memes'} on:click={() => (activeTab = 'memes')}>Мемы</button>
             <button class="tab-button" class:active={activeTab === 'global'} on:click={() => (activeTab = 'global')}>Улучшения</button>
-            <button class="tab-button" class:active={activeTab === 'achievements'} on:click={() => (activeTab = 'achievements')}>Задания</button>
-
             {#if $gameStore.totalViews >= PRESTIGE_THRESHOLD / 10 || $gameStore.prestigePoints > 0}
                 <button class="tab-button prestige" class:active={activeTab === 'prestige'} on:click={() => (activeTab = 'prestige')}>
                     Престиж 🧠
@@ -37,7 +35,7 @@
             {#if activeTab === 'memes'}
                 {#each $gameStore.memes as meme, index (meme.id)}
                     {@const { totalCost, levelsToBuy } = calculateUpgradeCost($gameStore, meme.id, $gameStore.buyMultiplier)}
-
+                    
                     {#if meme.isUnlocked}
                         <div class="upgrade-item" class:active={index === $gameStore.activeMemeIndex} on:click={() => gameStore.setActiveMeme(index)} role="button" tabindex="0">
                             <div class="upgrade-item-info">
@@ -66,28 +64,13 @@
             {:else if activeTab === 'global'}
                 <UpgradeTree />
 
-            {:else if activeTab === 'achievements'}
-                {#each ACHIEVEMENT_DEFINITIONS as achievement (achievement.id)}
-                    <div class="upgrade-item achievement" class:completed={$gameStore.achievementsProgress[achievement.id]}>
-                        <div class="achievement-icon">
-                            {#if $gameStore.achievementsProgress[achievement.id]}✓{:else}❓{/if}
-                        </div>
-                        <div class="upgrade-item-info">
-                            <p class="item-name">{achievement.name}</p>
-                            <p class="item-stats">{achievement.description}</p>
-                        </div>
-                        <div class="achievement-reward">
-                            {achievement.rewardDescription}
-                        </div>
-                    </div>
-                {/each}
-
             {:else if activeTab === 'prestige'}
                 <PrestigeView />
             {/if}
         </div>
     </div>
 </div>
+
 <style>
     .view-container, .content-area, #tab-content {
         display: flex;
@@ -243,21 +226,6 @@
     }
     .tab-button.prestige.active {
         border-bottom-color: #f0abfc;
-    }
-    .achievement {
-        cursor: default;
-    }
-    .achievement-icon {
-        font-size: 1.5rem;
-        margin-right: 1rem;
-    }
-    .achievement-reward {
-        padding-left: 5px;
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: var(--primary-accent);
-        text-align: right;
-        flex-shrink: 0;
     }
     .total-views {
         display: flex;

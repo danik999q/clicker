@@ -2,7 +2,7 @@
     import { gameStore } from '$lib/store';
     import ClickerView from '$lib/components/views/ClickerView.svelte';
     import UpgradesView from '$lib/components/views/UpgradesView.svelte';
-    import DailyQuestView from '$lib/components/views/DailyQuestView.svelte';
+    import TasksView from '$lib/components/views/TasksView.svelte';
     import ReferralView from '$lib/components/views/ReferralView.svelte';
     import AccountView from '$lib/components/views/AccountView.svelte';
     import BottomNav from '$lib/components/ui/BottomNav.svelte';
@@ -10,7 +10,7 @@
     const views = {
         clicker: ClickerView,
         upgrades: UpgradesView,
-        daily: DailyQuestView,
+        tasks: TasksView,
         referrals: ReferralView,
         account: AccountView
     };
