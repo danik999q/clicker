@@ -1,6 +1,6 @@
 import { GameState } from './types';
 
-export const calculatePassiveIncome = (state: GameState): number => {
+export const calculateBasePassiveIncome = (state: GameState): number => {
     if (!state || !state.memes) return 0;
     const prestigeMultiplier = 1 + ((state.prestigePoints || 0) * 0.02);
     const passiveMultiplier = 1 + (state.rewardBonuses?.passiveMultiplier || 0);
@@ -12,8 +12,16 @@ export const calculatePassiveIncome = (state: GameState): number => {
     return viewsPerSecond * passiveMultiplier * prestigeMultiplier;
 };
 
+
+export const calculatePassiveIncome = (state: GameState): number => {
+    const incomeBoostMultiplier = state.activeBoosts?.incomeMultiplier.isActive ? 7 : 1;
+    const baseIncome = calculateBasePassiveIncome(state);
+    return baseIncome * incomeBoostMultiplier;
+};
+
 export const calculateClickValue = (state: GameState): number => {
     if (!state || !state.memes) return 1;
+    const clickFrenzyMultiplier = state.activeBoosts?.clickFrenzy.isActive ? 500 : 1;
     const prestigeMultiplier = 1 + ((state.prestigePoints || 0) * 0.02);
     const clickMultiplier = 1 + (state.rewardBonuses?.clickMultiplier || 0);
     const activeMeme = state.memes[state.activeMemeIndex || 0];
@@ -23,5 +31,5 @@ export const calculateClickValue = (state: GameState): number => {
     }
 
     const baseClickViews = (activeMeme.baseViews || 1) * (activeMeme.level || 1);
-    return baseClickViews * clickMultiplier * prestigeMultiplier;
+    return baseClickViews * clickMultiplier * prestigeMultiplier * clickFrenzyMultiplier;
 };
